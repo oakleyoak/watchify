@@ -1,5 +1,4 @@
 import React, { useState } from 'react';
-import axios from 'axios';
 
 interface SearchBarProps {
   onSearch: (query: string, category: string, resolution: string) => void;

@@ -14,5 +14,14 @@ export default defineConfig({
   })],
   define: {
     global: 'globalThis',
+  },
+  build: {
+    rollupOptions: {
+      external: (id) => {
+        // Externalize Node.js specific modules that cause issues in browser builds
+        return id.includes('bittorrent-dht') ||
+               (id.includes('torrent-discovery') && !id.includes('browser'));
+      }
+    }
   }
 })
