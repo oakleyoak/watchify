@@ -33,7 +33,7 @@ exports.handler = async (event, context) => {
   }
 
   try {
-    const { query, category, limit = 20 } = event.queryStringParameters || {};
+    const { query, category = 'All', limit = 20 } = event.queryStringParameters || {};
 
     if (!query) {
       return {
@@ -43,30 +43,63 @@ exports.handler = async (event, context) => {
       };
     }
 
-    console.log('Search request received for query:', query);
+    console.log('Search request received for query:', query, 'category:', category);
 
-    // For now, return mock data to test if the function works
-    const mockResults = [
-      {
-        title: `${query} - Test Movie 1`,
-        size: '1.2 GB',
-        seeders: 150,
-        magnet: 'magnet:?xt=urn:btih:mockhash1',
-        poster_url: ''
-      },
-      {
-        title: `${query} - Test Movie 2`,
-        size: '800 MB',
-        seeders: 89,
-        magnet: 'magnet:?xt=urn:btih:mockhash2',
-        poster_url: ''
+    // Enable multiple public providers for better results
+    const providers = ['1337x', 'ThePirateBay', 'Rarbg', 'Limetorrents', 'KickassTorrents', 'Yts'];
+
+    // Enable providers
+    providers.forEach(provider => {
+      try {
+        TorrentSearchApi.enableProvider(provider);
+      } catch (e) {
+        console.warn(`Failed to enable provider ${provider}:`, e.message);
       }
-    ];
+    });
+
+    let allResults = [];
+    let errors = [];
+
+    // Search across all enabled providers
+    try {
+      console.log('Searching across all enabled providers...');
+      const results = await TorrentSearchApi.search(query, category, parseInt(limit));
+
+      if (results && results.length > 0) {
+        // Map results to our expected format
+        const mappedResults = results.map(torrent => ({
+          title: torrent.title || 'Unknown Title',
+          size: torrent.size || 'Unknown',
+          seeders: parseInt(torrent.seeds) || 0,
+          magnet: torrent.magnet || '',
+          poster_url: torrent.desc || '',
+          category: torrent.category || category,
+          time: torrent.time || '',
+          provider: torrent.provider || 'Unknown'
+        }));
+
+        allResults = allResults.concat(mappedResults);
+      }
+    } catch (searchError) {
+      console.warn('Error during search:', searchError.message);
+      errors.push(`Search failed: ${searchError.message}`);
+    }
+
+    // Sort by seeders (most popular first) and limit results
+    allResults.sort((a, b) => (b.seeders || 0) - (a.seeders || 0));
+    const limitedResults = allResults.slice(0, parseInt(limit));
+
+    console.log(`Found ${limitedResults.length} results from ${providers.length} providers`);
 
     return {
       statusCode: 200,
       headers,
-      body: JSON.stringify({ results: mockResults })
+      body: JSON.stringify({
+        results: limitedResults,
+        total: limitedResults.length,
+        providers: providers.length,
+        errors: errors.length > 0 ? errors : undefined
+      })
     };
 
   } catch (error) {
