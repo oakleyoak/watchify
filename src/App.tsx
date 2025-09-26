@@ -1,6 +1,5 @@
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { Suspense, lazy } from 'react';
-import { motion } from 'framer-motion';
 import Header from './components/Header.tsx';
 import ProtectedRoute from './components/ProtectedRoute.tsx';
 import PWAInstallPrompt from './components/PWAInstallPrompt.tsx';
@@ -14,27 +13,14 @@ const Favorites = lazy(() => import('./pages/Favorites.tsx'));
 
 // Loading component
 const PageLoader = () => (
-  <motion.div
-    className="min-h-screen bg-gray-900 text-white flex items-center justify-center"
-    initial={{ opacity: 0 }}
-    animate={{ opacity: 1 }}
-    exit={{ opacity: 0 }}
-  >
+  <div className="min-h-screen bg-gray-900 text-white flex items-center justify-center animate-fade-in">
     <div className="text-center">
-      <motion.div
-        className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto mb-4"
-        animate={{ rotate: 360 }}
-        transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
-      ></motion.div>
-      <motion.p
-        initial={{ opacity: 0, y: 10 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.2 }}
-      >
+      <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto mb-4"></div>
+      <p className="animate-fade-in-delayed">
         Loading...
-      </motion.p>
+      </p>
     </div>
-  </motion.div>
+  </div>
 );
 
 function App() {
