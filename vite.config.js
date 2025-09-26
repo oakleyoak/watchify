@@ -46,7 +46,6 @@ export default defineConfig({
     }
   },
   optimizeDeps: {
-    include: ['webtorrent', 'framer-motion'],
-    exclude: ['motion-dom'] // Try excluding motion-dom to force bundling
+    include: ['webtorrent', 'framer-motion', 'motion-dom']
   }
 })
