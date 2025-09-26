@@ -77,17 +77,37 @@ const Home = () => {
   }
 
   return (
-    <div className="container mx-auto p-4">
-      <SearchBar onSearch={handleSearch} />
+    <main className="container mx-auto p-4" id="main-content">
+      <section aria-labelledby="search-section">
+        <h2 id="search-section" className="sr-only">Torrent Search</h2>
+        <div id="search">
+          <SearchBar onSearch={handleSearch} />
+        </div>
+      </section>
+
       <ContinueWatching />
-      {error && <div className="text-center text-red-500 mb-4">{error}</div>}
-      {loading && <div className="text-center text-white">Loading...</div>}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mt-4">
-        {results.map((torrent, index) => (
-          <TorrentCard key={index} torrent={torrent} onDelete={() => {}} />
-        ))}
-      </div>
-    </div>
+
+      {error && (
+        <div className="text-center text-red-500 mb-4" role="alert" aria-live="polite">
+          {error}
+        </div>
+      )}
+
+      {loading && (
+        <div className="text-center text-white" aria-live="polite">
+          Loading search results...
+        </div>
+      )}
+
+      <section aria-labelledby="results-section">
+        <h2 id="results-section" className="sr-only">Search Results</h2>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mt-4">
+          {results.map((torrent, index) => (
+            <TorrentCard key={index} torrent={torrent} onDelete={() => {}} />
+          ))}
+        </div>
+      </section>
+    </main>
   );
 };
 

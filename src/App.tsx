@@ -3,6 +3,8 @@ import { Suspense, lazy } from 'react';
 import { motion } from 'framer-motion';
 import Header from './components/Header.tsx';
 import ProtectedRoute from './components/ProtectedRoute.tsx';
+import PWAInstallPrompt from './components/PWAInstallPrompt.tsx';
+import SkipLinks from './components/SkipLinks.tsx';
 
 // Lazy load page components
 const Home = lazy(() => import('./pages/Home.tsx'));
@@ -38,6 +40,7 @@ const PageLoader = () => (
 function App() {
   return (
     <Router>
+      <SkipLinks />
       <div className="min-h-screen bg-gray-900 text-white">
         <Header />
         <Suspense fallback={<PageLoader />}>
@@ -48,6 +51,7 @@ function App() {
             <Route path="/favorites" element={<ProtectedRoute><Favorites /></ProtectedRoute>} />
           </Routes>
         </Suspense>
+        <PWAInstallPrompt />
       </div>
     </Router>
   );

@@ -59,8 +59,8 @@ const TorrentCard = ({ torrent, onDelete, showDelete = false }) => {
   };
 
   return (
-    <motion.div
-      className="bg-gray-800 p-4 rounded cursor-pointer"
+    <motion.article
+      className="bg-gray-800 p-4 rounded cursor-pointer focus-within:ring-2 focus-within:ring-blue-500"
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.3 }}
@@ -69,18 +69,23 @@ const TorrentCard = ({ torrent, onDelete, showDelete = false }) => {
         boxShadow: "0 10px 25px rgba(0,0,0,0.3)"
       }}
       whileTap={{ scale: 0.98 }}
+      role="article"
+      aria-labelledby={`torrent-title-${torrent.magnet?.slice(-10)}`}
     >
       {torrent.poster_url && (
         <motion.img
           src={torrent.poster_url}
-          alt={torrent.title}
+          alt={`Poster for ${torrent.title}`}
           className="w-full h-48 object-cover rounded mb-3"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ delay: 0.2, duration: 0.3 }}
+          loading="lazy"
         />
       )}
+
       <motion.h3
+        id={`torrent-title-${torrent.magnet?.slice(-10)}`}
         className="text-lg font-bold mb-2"
         initial={{ opacity: 0, x: -20 }}
         animate={{ opacity: 1, x: 0 }}
@@ -88,60 +93,77 @@ const TorrentCard = ({ torrent, onDelete, showDelete = false }) => {
       >
         {torrent.title}
       </motion.h3>
+
       <motion.div
         className="text-sm text-gray-300 space-y-1"
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={{ delay: 0.2, duration: 0.3 }}
+        aria-label="Torrent details"
       >
-        <p>Size: {torrent.size}</p>
-        <p>Seeders: {torrent.seeders}</p>
+        <p><span className="sr-only">File size: </span>{torrent.size}</p>
+        <p><span className="sr-only">Number of seeders: </span>{torrent.seeders}</p>
+        {torrent.year && <p><span className="sr-only">Release year: </span>{torrent.year}</p>}
+        {torrent.rating && <p><span className="sr-only">Rating: </span>{torrent.rating}/10</p>}
       </motion.div>
+
       {error && (
-        <motion.p
+        <motion.div
           className="text-red-500 text-sm mt-2"
           initial={{ opacity: 0, scale: 0.8 }}
           animate={{ opacity: 1, scale: 1 }}
           transition={{ duration: 0.2 }}
+          role="alert"
+          aria-live="polite"
         >
           {error}
-        </motion.p>
+        </motion.div>
       )}
+
       <motion.div
         className="flex space-x-2 mt-3"
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.3, duration: 0.3 }}
+        role="group"
+        aria-label="Torrent actions"
       >
         <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
           <Link
             to={`/player/${encodeURIComponent(torrent.magnet)}`}
             onClick={addToHistory}
-            className="inline-block bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded text-sm transition-colors"
+            className="inline-block bg-blue-600 hover:bg-blue-700 focus:bg-blue-700 text-white px-3 py-1 rounded text-sm transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500"
+            aria-label={`Watch ${torrent.title}`}
           >
-            Watch
+            ▶️ Watch
           </Link>
         </motion.div>
+
         <motion.button
           onClick={addToFavorites}
-          className="bg-yellow-600 hover:bg-yellow-700 text-white px-3 py-1 rounded text-sm transition-colors"
+          className="bg-yellow-600 hover:bg-yellow-700 focus:bg-yellow-700 text-white px-3 py-1 rounded text-sm transition-colors focus:outline-none focus:ring-2 focus:ring-yellow-500"
           whileHover={{ scale: 1.05 }}
           whileTap={{ scale: 0.95 }}
+          aria-label={`Add ${torrent.title} to favorites`}
+          type="button"
         >
-          Favorite
+          ⭐ Favorite
         </motion.button>
+
         {showDelete && (
           <motion.button
             onClick={handleDelete}
-            className="bg-red-600 hover:bg-red-700 text-white px-3 py-1 rounded text-sm transition-colors"
+            className="bg-red-600 hover:bg-red-700 focus:bg-red-700 text-white px-3 py-1 rounded text-sm transition-colors focus:outline-none focus:ring-2 focus:ring-red-500"
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
+            aria-label={`Delete ${torrent.title} from list`}
+            type="button"
           >
-            Delete
+            🗑️ Delete
           </motion.button>
         )}
       </motion.div>
-    </motion.div>
+    </motion.article>
   );
 };
 
