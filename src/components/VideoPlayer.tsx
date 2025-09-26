@@ -271,11 +271,23 @@ const VideoPlayer = ({ magnet, resumeTime }) => {
   const saveProgress = async () => {
     const { data: { user } } = await supabase.auth.getUser();
     if (user && videoRef.current && file) {
+      // Hash the magnet URL for database storage
+      const hashMagnet = (magnet: string): string => {
+        let hash = 0;
+        for (let i = 0; i < magnet.length; i++) {
+          const char = magnet.charCodeAt(i);
+          hash = ((hash << 5) - hash) + char;
+          hash = hash & hash; // Convert to 32-bit integer
+        }
+        return Math.abs(hash).toString(36);
+      };
+
       await supabase
         .from('user_history')
         .upsert({
           user_id: user.id,
-          torrent_id: magnet,
+          torrent_id: hashMagnet(magnet),
+          magnet_url: magnet,
           title: file.name,
           progress_seconds: videoRef.current.currentTime,
           last_watched_at: new Date().toISOString()

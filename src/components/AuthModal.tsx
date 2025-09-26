@@ -54,6 +54,7 @@ const AuthModal = ({ isOpen, onClose, mode, setMode }) => {
               onChange={(e) => setEmail(e.target.value)}
               className="w-full p-2 rounded bg-gray-700 text-white"
               required
+              autoComplete="email"
             />
           </div>
 
@@ -66,6 +67,7 @@ const AuthModal = ({ isOpen, onClose, mode, setMode }) => {
               className="w-full p-2 rounded bg-gray-700 text-white"
               required
               minLength={6}
+              autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
             />
           </div>
 

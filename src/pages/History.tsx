@@ -29,11 +29,22 @@ const History = () => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (user) {
+        // Hash the magnet URL for database lookup
+        const hashMagnet = (magnet: string): string => {
+          let hash = 0;
+          for (let i = 0; i < magnet.length; i++) {
+            const char = magnet.charCodeAt(i);
+            hash = ((hash << 5) - hash) + char;
+            hash = hash & hash; // Convert to 32-bit integer
+          }
+          return Math.abs(hash).toString(36);
+        };
+
         const { error } = await supabase
           .from('user_history')
           .delete()
           .eq('user_id', user.id)
-          .eq('torrent_id', torrent.magnet || torrent.torrent_id);
+          .eq('torrent_id', hashMagnet(torrent.magnet));
 
         if (error) throw error;
 
@@ -55,7 +66,7 @@ const History = () => {
         {history.map((item, index) => (
           <TorrentCard
             key={index}
-            torrent={{ title: item.title, magnet: item.torrent_id, poster_url: item.poster_url }}
+            torrent={{ title: item.title, magnet: item.magnet_url, poster_url: item.poster_url }}
             onDelete={deleteFromHistory}
             showDelete={true}
           />
