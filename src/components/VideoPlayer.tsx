@@ -395,29 +395,20 @@ const VideoPlayer = ({ magnet, magnetHash, resumeTime }) => {
           console.log('VideoPlayer: Streaming file:', videoFile.name, 'Size:', videoFile.length);
           setFile(videoFile);
 
-          // Create a streaming URL for the video file
-          const fileStream = videoFile.createReadStream();
-          const chunks = [];
+          // Use WebTorrent's built-in streaming method
+          // This is the CORRECT way to stream torrents - it handles buffering automatically
+          videoFile.appendTo(videoRef.current, {
+            autoplay: false,
+            controls: false
+          }, (err, elem) => {
+            if (err) {
+              console.error('VideoPlayer: Append to video failed:', err);
+              setError('Failed to stream video: ' + err.message);
+              setLoading(false);
+              return;
+            }
 
-          fileStream.on('data', (chunk) => {
-            chunks.push(chunk);
-          });
-
-          fileStream.on('end', () => {
-            console.log('VideoPlayer: File stream ended, creating blob URL');
-            const blob = new Blob(chunks, { type: 'video/mp4' });
-            const url = URL.createObjectURL(blob);
-
-            // Store the torrent for future use
-            torrentStorage.storeTorrent(magnetHash, blob, {
-              name: videoFile.name,
-              size: videoFile.length,
-              downloadedAt: new Date().toISOString()
-            });
-
-            // Set video source
-            videoRef.current.src = url;
-            videoRef.current.load();
+            console.log('VideoPlayer: Video streaming started successfully');
 
             // Set up video event listeners
             const handleCanPlay = () => {
@@ -434,22 +425,36 @@ const VideoPlayer = ({ magnet, magnetHash, resumeTime }) => {
               setLoading(false);
             };
 
+            const handleLoadStart = () => {
+              console.log('VideoPlayer: Video load started');
+              setLoading(true);
+            };
+
+            const handleProgress = () => {
+              // Update buffering progress from video element
+              if (videoRef.current && videoRef.current.buffered.length > 0) {
+                const buffered = videoRef.current.buffered.end(0);
+                const duration = videoRef.current.duration;
+                if (duration > 0) {
+                  setDownloadProgress((buffered / duration) * 100);
+                }
+              }
+            };
+
             videoRef.current.addEventListener('canplay', handleCanPlay);
             videoRef.current.addEventListener('error', handleVideoError);
+            videoRef.current.addEventListener('loadstart', handleLoadStart);
+            videoRef.current.addEventListener('progress', handleProgress);
 
             // Clean up event listeners on unmount
             return () => {
               if (videoRef.current) {
                 videoRef.current.removeEventListener('canplay', handleCanPlay);
                 videoRef.current.removeEventListener('error', handleVideoError);
+                videoRef.current.removeEventListener('loadstart', handleLoadStart);
+                videoRef.current.removeEventListener('progress', handleProgress);
               }
             };
-          });
-
-          fileStream.on('error', (err) => {
-            console.error('VideoPlayer: File stream error:', err);
-            setError('Failed to stream video file: ' + err.message);
-            setLoading(false);
           });
 
         });
