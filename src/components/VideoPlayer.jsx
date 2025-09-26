@@ -1,5 +1,4 @@
 import { useEffect, useRef, useState } from 'react';
-import WebTorrent from 'webtorrent';
 import { supabase } from '../supabase';
 
 const VideoPlayer = ({ magnet, resumeTime }) => {
@@ -31,20 +30,49 @@ const VideoPlayer = ({ magnet, resumeTime }) => {
   }, []);
 
   useEffect(() => {
-    const wtClient = new WebTorrent();
-    setClient(wtClient);
+    let wtClient;
 
-    wtClient.on('error', (err) => {
-      console.error('WebTorrent error:', err);
-      setError('Failed to initialize torrent client');
+    const initWebTorrent = async () => {
+      try {
+        // Load WebTorrent from CDN to avoid build issues
+        if (!window.WebTorrent) {
+          await new Promise((resolve, reject) => {
+            const script = document.createElement('script');
+            script.src = 'https://cdn.jsdelivr.net/npm/webtorrent@latest/webtorrent.min.js';
+            script.onload = resolve;
+            script.onerror = reject;
+            document.head.appendChild(script);
+          });
+        }
+
+        wtClient = new window.WebTorrent();
+
+        wtClient.on('error', (err) => {
+          console.error('WebTorrent error:', err);
+          setError('Failed to initialize torrent client - falling back to basic player');
+          setLoading(false);
+        });
+
+        setClient(wtClient);
+      } catch (err) {
+        console.error('Failed to load WebTorrent:', err);
+        setError('WebTorrent not available - using basic video player');
+        setLoading(false);
+      }
+    };
+
+    // Only try to load WebTorrent if we're in a browser environment
+    if (typeof window !== 'undefined') {
+      initWebTorrent();
+    } else {
+      setError('Video player not available in this environment');
       setLoading(false);
-    });
+    }
 
     return () => {
-      if (torrent) {
-        torrent.destroy();
+      if (wtClient) {
+        wtClient.destroy();
       }
-      wtClient.destroy();
     };
   }, []);
 
