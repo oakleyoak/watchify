@@ -41,7 +41,8 @@ export default defineConfig({
       },
       output: {
         // Ensure .mjs files are handled correctly
-        format: 'es'
+        format: 'es',
+        inlineDynamicImports: true
       }
     }
   },
