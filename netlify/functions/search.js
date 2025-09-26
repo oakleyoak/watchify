@@ -43,14 +43,8 @@ exports.handler = async (event, context) => {
       };
     }
 
-    // Enable specific working public providers
+    // Enable only one provider at a time to test
     TorrentSearchApi.enableProvider('1337x');
-    TorrentSearchApi.enableProvider('ThePirateBay');
-    TorrentSearchApi.enableProvider('Rarbg');
-    TorrentSearchApi.enableProvider('TorrentProject');
-    TorrentSearchApi.enableProvider('Yts');
-    TorrentSearchApi.enableProvider('Limetorrents');
-    TorrentSearchApi.enableProvider('Eztv');
 
     // Create search queries including Turkish variations
     const searchQueries = [query];
