@@ -18,12 +18,22 @@ const Home = () => {
       const { query, category, resolution } = searchParams;
 
       try {
-        // Use our proxy server for search (handles YTS + Pirate Bay fallback)
-        const proxyUrl = process.env.REACT_APP_PROXY_URL || 'https://your-proxy-url.com';
-        const response = await fetch(`${proxyUrl}/api/search?query=${encodeURIComponent(query)}&limit=20`);
+        // Call Netlify Function for torrent search
+        const params = new URLSearchParams({
+          query,
+          category,
+          limit: '50'
+        });
+
+        const response = await fetch(`/.netlify/functions/search?${params}`, {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+          }
+        });
 
         if (!response.ok) {
-          throw new Error(`Proxy API failed: ${response.status}`);
+          throw new Error(`Search failed: ${response.status}`);
         }
 
         const data = await response.json();
@@ -32,22 +42,23 @@ const Home = () => {
           throw new Error(data.error);
         }
 
-        // Map results to our expected format
-        const mappedTorrents = (data.results || []).map(torrent => ({
-          title: torrent.title || 'Unknown Title',
-          size: torrent.size || 'Unknown',
-          seeders: torrent.seeds || torrent.seeders || 0,
-          magnet: torrent.magnet || '',
-          poster_url: torrent.poster_url || ''
-        }));
+        // Filter and map results
+        const mappedTorrents = (data.results || [])
+          .filter(torrent => !resolution || resolution === 'all' || torrent.title.toLowerCase().includes(resolution.toLowerCase()))
+          .map(torrent => ({
+            title: torrent.title || 'Unknown Title',
+            size: torrent.size || 'Unknown',
+            seeders: torrent.seeders || 0,
+            magnet: torrent.magnet || '',
+            poster_url: torrent.poster_url || ''
+          }))
+          .slice(0, 20); // Limit to 20 results
 
-        // Filter by resolution if specified
-        return mappedTorrents.filter(torrent =>
-          !resolution || resolution === 'all' || torrent.title.toLowerCase().includes(resolution.toLowerCase())
-        );
+        return mappedTorrents;
       } catch (error) {
         console.error('Search API Error:', error);
-        throw new Error('Unable to search torrents. The search service may be temporarily unavailable.');
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+        throw new Error(`Unable to search torrents: ${errorMessage}. The search service may be temporarily unavailable. Please try again later.`);
       }
     },
     enabled: !!searchParams,
@@ -90,8 +101,23 @@ const Home = () => {
       <ContinueWatching />
 
       {error && (
-        <div className="text-center text-red-500 mb-4" role="alert" aria-live="polite">
-          {error}
+        <div className="text-center py-8">
+          <div className="text-red-500 text-5xl mb-4">⚠️</div>
+          <h3 className="text-xl font-semibold text-white mb-2">Search Failed</h3>
+          <p className="text-slate-400 mb-4 max-w-md mx-auto">{error}</p>
+          <button
+            onClick={() => {
+              setError('');
+              // Trigger a new search if we have search params
+              if (searchParams) {
+                const { query, category, resolution } = searchParams;
+                setSearchParams({ query, category, resolution });
+              }
+            }}
+            className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg transition-colors"
+          >
+            Try Again
+          </button>
         </div>
       )}
 
@@ -103,11 +129,21 @@ const Home = () => {
 
       <section aria-labelledby="results-section">
         <h2 id="results-section" className="sr-only">Search Results</h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mt-4">
-          {results.map((torrent, index) => (
-            <TorrentCard key={index} torrent={torrent} onDelete={() => {}} />
-          ))}
-        </div>
+        {results.length === 0 && searchParams ? (
+          <div className="text-center py-12">
+            <div className="text-6xl mb-4">🔍</div>
+            <h3 className="text-xl font-semibold text-white mb-2">No results found</h3>
+            <p className="text-slate-400">
+              Try adjusting your search terms or filters. You can also try searching for YouTube videos instead.
+            </p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mt-4">
+            {results.map((torrent, index) => (
+              <TorrentCard key={index} torrent={torrent} onDelete={() => {}} />
+            ))}
+          </div>
+        )}
       </section>
     </main>
   );

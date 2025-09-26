@@ -1,52 +1,284 @@
 # 🎬 Watchify
 
-A modern, feature-rich torrent streaming platform built with cutting-edge web technologies. Stream torrents directly in your browser with professional-grade video controls, PWA capabilities, and comprehensive accessibility support.
+A modern, professional torrent streaming platform built with React, TypeScript, and cutting-edge web technologies. Stream torrents directly in your browser with enterprise-grade video controls, comprehensive accessibility, and robust user management.
 
 ![Watchify](https://img.shields.io/badge/Watchify-Streaming_Platform-blue?style=for-the-badge&logo=video&logoColor=white)
 ![React](https://img.shields.io/badge/React-18.3.1-61DAFB?style=flat-square&logo=react)
 ![TypeScript](https://img.shields.io/badge/TypeScript-5.9.2-3178C6?style=flat-square&logo=typescript)
 ![Vite](https://img.shields.io/badge/Vite-5.4.8-646CFF?style=flat-square&logo=vite)
 ![PWA](https://img.shields.io/badge/PWA-Ready-5A0FC8?style=flat-square&logo=pwa)
+![Netlify](https://img.shields.io/badge/Netlify-Deployed-00C46A?style=flat-square&logo=netlify)
 
 ## ✨ Features
 
-### 🎯 Core Features
-- 🔍 **Advanced Search**: Search torrents or YouTube videos with category filters
+### 🎯 Core Functionality
+- 🔍 **Intelligent Search**: Search torrents via YTS and Pirate Bay with automatic fallback
 - 🎬 **Dual Streaming**: Stream torrents via WebTorrent OR watch YouTube videos directly
-- 🎥 **YouTube Integration**: Search and stream YouTube videos with professional player
-- 🧲 **Torrent Streaming**: Direct torrent streaming using WebTorrent technology
-- 👤 **User Authentication**: Secure signup/login with Supabase Auth
-- 📚 **Smart History**: Automatic progress tracking and resume functionality
-- ❤️ **Favorites System**: Save and manage your favorite torrents
-- 📱 **Progressive Web App**: Install as a native app with offline capabilities
+- 🧲 **WebTorrent Integration**: Direct peer-to-peer streaming in the browser
+- 👤 **Secure Authentication**: Supabase-powered user management with JWT tokens
+- 📚 **Smart History**: Automatic progress tracking with resume functionality
+- ❤️ **Favorites System**: Curated collection of saved content
+- 📱 **Progressive Web App**: Installable with offline capabilities
 
-### 🎥 Professional Video Controls
-- **Playback Speed**: 0.25x to 2x speed control with visual indicators
-- **Picture-in-Picture**: Native PiP mode for multitasking
-- **Volume Controls**: Custom volume slider with mute/unmute
-- **Seeking**: Click-to-seek on progress bar with precise control
-- **Skip Controls**: 10-second forward/backward skip buttons
-- **Keyboard Shortcuts**: Full keyboard navigation support
-- **Auto-hiding Controls**: Controls fade out during playback for immersive viewing
+### 🎥 Professional Video Experience
+- **Advanced Controls**: Playback speed (0.25x-2x), picture-in-picture, custom volume
+- **Precise Seeking**: Click-to-seek with visual progress indicators
+- **Keyboard Shortcuts**: Full keyboard navigation (Space, arrows, F, M, P)
+- **Responsive Design**: Optimized for desktop, tablet, and mobile
+- **Smooth Animations**: Framer Motion-powered transitions
 
 ### ♿ Accessibility Excellence
-- **ARIA Labels**: Comprehensive screen reader support
-- **Keyboard Navigation**: Full keyboard accessibility with focus management
+- **WCAG 2.1 AA Compliant**: Full screen reader and keyboard support
+- **ARIA Labels**: Comprehensive accessibility attributes
 - **Skip Links**: Quick navigation for keyboard users
-- **High Contrast**: Automatic high contrast mode support
-- **Reduced Motion**: Respects user motion preferences
-- **Semantic HTML**: Proper document structure for assistive technologies
+- **High Contrast**: Automatic adaptation to system preferences
+- **Reduced Motion**: Respects user accessibility settings
 
-### 🚀 Modern Web Features
-- **TypeScript**: Full type safety and enhanced developer experience
-- **React Query**: Intelligent data fetching and caching
-- **Error Boundaries**: Graceful error handling with fallback UI
-- **Lazy Loading**: Code splitting for optimal performance
-- **Framer Motion**: Smooth animations and transitions
-- **Service Worker**: Offline caching and background sync
-- **Responsive Design**: Perfect on all devices and screen sizes
+### 🚀 Modern Architecture
+- **Serverless Backend**: Netlify Functions for API proxying
+- **Type-Safe**: Full TypeScript implementation
+- **Optimized Performance**: Code splitting, lazy loading, and caching
+- **Error Boundaries**: Graceful error handling throughout
+- **Real-time Data**: React Query for intelligent caching
 
 ## 🛠️ Tech Stack
+
+### Frontend Framework
+- **React 18.3.1** - Concurrent features and modern hooks
+- **TypeScript 5.9.2** - Type-safe development experience
+- **Vite 5.4.8** - Lightning-fast build tool and dev server
+- **Tailwind CSS 3.4.14** - Utility-first CSS with custom design system
+
+### State & Data Management
+- **TanStack React Query 5.90.2** - Powerful data synchronization
+- **Supabase** - Authentication, database, and real-time subscriptions
+- **React Router 6.26.1** - Declarative client-side routing
+
+### Media & Streaming
+- **WebTorrent** - Client-side torrent streaming
+- **Framer Motion 12.23.22** - Production-ready animations
+- **HTML5 Video API** - Native video controls with custom overlay
+
+### Development & Quality
+- **ESLint** - Code linting and consistency
+- **PostCSS** - CSS processing and optimization
+- **Sharp** - PWA icon generation
+- **Vite Plugin Node Polyfills** - Node.js compatibility in browser
+
+## 🚀 Quick Start
+
+### Prerequisites
+- **Node.js 18+** and npm
+- **Supabase account** for backend services
+- **Git** for version control
+
+### Installation
+
+1. **Clone the repository**
+   ```bash
+   git clone https://github.com/oakleyoak/watchify.git
+   cd watchify
+   ```
+
+2. **Install dependencies**
+   ```bash
+   npm install
+   ```
+
+3. **Configure Supabase**
+   - Create a project at [supabase.com](https://supabase.com)
+   - Get your project URL and anon key from Settings > API
+   - Create `.env.local`:
+     ```env
+     VITE_SUPABASE_URL=https://your-project.supabase.co
+     VITE_SUPABASE_ANON_KEY=your-anon-key
+     ```
+
+4. **Set up database schema**
+   Run these SQL commands in your Supabase SQL Editor:
+
+   ```sql
+   -- User watch history
+   CREATE TABLE user_history (
+     id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+     user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
+     torrent_id TEXT NOT NULL,
+     title TEXT NOT NULL,
+     poster_url TEXT,
+     last_watched_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+     progress_seconds INTEGER DEFAULT 0,
+     UNIQUE(user_id, torrent_id)
+   );
+
+   -- User favorites
+   CREATE TABLE user_favorites (
+     id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+     user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
+     torrent_id TEXT NOT NULL,
+     title TEXT NOT NULL,
+     poster_url TEXT,
+     added_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+     UNIQUE(user_id, torrent_id)
+   );
+   ```
+
+5. **Generate PWA icons** (optional)
+   ```bash
+   npm run generate-icons
+   ```
+
+6. **Start development**
+   ```bash
+   npm run dev
+   ```
+
+## 🎮 Usage Guide
+
+### Basic Operation
+1. **Search**: Enter keywords in the search bar
+2. **Filter**: Use category and resolution filters
+3. **Stream**: Click "Watch" to start streaming
+4. **Controls**: Use video controls or keyboard shortcuts
+
+### Keyboard Shortcuts
+- **Space** - Play/Pause toggle
+- **←/→** - Skip 10 seconds backward/forward
+- **↑/↓** - Volume up/down
+- **F** - Toggle fullscreen
+- **M** - Toggle mute
+- **P** - Toggle picture-in-picture
+
+### User Features
+- **Sign Up/Login**: Create account to access personal features
+- **History**: Automatic progress tracking across sessions
+- **Favorites**: Save content for quick access
+- **PWA**: Install as native app for enhanced experience
+
+## 📱 Progressive Web App
+
+Watchify is a fully-featured PWA with:
+- **Offline Access**: Core functionality works without internet
+- **Native Installation**: Add to home screen on any device
+- **Background Sync**: Actions sync when connection restored
+- **App-like Experience**: Standalone operation with native feel
+
+## ♿ Accessibility
+
+Built with accessibility as a core principle:
+- **Screen Reader Support**: Full NVDA, JAWS, and VoiceOver compatibility
+- **Keyboard Navigation**: Complete keyboard accessibility
+- **Focus Management**: Logical tab order with visible indicators
+- **High Contrast**: Automatic system preference detection
+- **Reduced Motion**: Respects user motion preferences
+
+## 🚀 Deployment
+
+### Netlify (Recommended)
+1. **Connect Repository**: Link your GitHub repo to Netlify
+2. **Build Settings**:
+   - Build command: `npm run build`
+   - Publish directory: `dist`
+   - Functions directory: `netlify/functions`
+3. **Environment Variables**:
+   - `VITE_SUPABASE_URL`
+   - `VITE_SUPABASE_ANON_KEY`
+
+### Manual Deployment
+```bash
+npm run build
+# Deploy the 'dist' folder to your hosting provider
+```
+
+### Production Configuration
+Update your Supabase project settings for production:
+```toml
+[auth]
+site_url = "https://your-netlify-site.netlify.app"
+additional_redirect_urls = ["https://your-netlify-site.netlify.app"]
+```
+
+## 📊 Performance & Quality
+
+- **Bundle Optimization**: Code splitting and lazy loading
+- **Image Processing**: Automatic WebP conversion and optimization
+- **Caching Strategy**: Intelligent service worker caching
+- **Core Web Vitals**: Optimized for speed and user experience
+- **Error Boundaries**: Graceful error handling and recovery
+
+## 🔧 Development
+
+### Available Scripts
+```bash
+npm run dev          # Start development server
+npm run build        # Production build
+npm run preview      # Preview production build
+npm run lint         # Run ESLint
+npm run generate-icons # Generate PWA icons
+```
+
+### Project Structure
+```
+src/
+├── components/       # Reusable UI components
+│   ├── Header.tsx           # Navigation and branding
+│   ├── SearchBar.tsx        # Search interface
+│   ├── TorrentCard.tsx      # Content cards
+│   ├── VideoPlayer.tsx      # Media player
+│   ├── PWAInstallPrompt.tsx # PWA installation
+│   ├── ProtectedRoute.tsx   # Auth protection
+│   ├── ErrorBoundary.tsx    # Error handling
+│   └── SkipLinks.tsx        # Accessibility
+├── pages/           # Route components
+│   ├── Home.tsx            # Main search page
+│   ├── Player.tsx          # Video player page
+│   ├── History.tsx         # Watch history
+│   └── Favorites.tsx       # Saved content
+├── hooks/           # Custom React hooks
+├── utils/           # Utility functions
+├── supabase.ts      # Database client
+├── main.tsx         # Application entry
+└── index.css        # Global styles
+
+netlify/
+└── functions/       # Serverless functions
+    └── search.js           # Torrent search API
+```
+
+## 🤝 Contributing
+
+We welcome contributions! Please follow these steps:
+
+1. **Fork** the repository
+2. **Create** a feature branch: `git checkout -b feature/amazing-feature`
+3. **Commit** changes: `git commit -m 'Add amazing feature'`
+4. **Push** to branch: `git push origin feature/amazing-feature`
+5. **Open** a Pull Request
+
+### Development Guidelines
+- Follow TypeScript best practices
+- Maintain accessibility standards
+- Add tests for new features
+- Update documentation
+- Follow conventional commit messages
+
+## 📄 License & Legal
+
+**Educational Purpose Only**: This project is for educational and demonstration purposes. Users are responsible for complying with local laws regarding torrent usage and copyright regulations.
+
+## 🙏 Acknowledgments
+
+- **WebTorrent** - Client-side torrent streaming technology
+- **YTS & Pirate Bay** - Torrent search APIs
+- **Supabase** - Backend-as-a-service platform
+- **Framer Motion** - Animation library
+- **Tailwind CSS** - CSS framework
+- **Netlify** - Hosting and serverless platform
+
+---
+
+**Built with ❤️ using modern web technologies**
+
+*Watchify - Stream torrents professionally*
 
 ### Frontend
 - **React 18.3.1** - Modern React with concurrent features
