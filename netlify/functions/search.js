@@ -110,10 +110,17 @@ exports.handler = async (event, context) => {
 
   } catch (error) {
     console.error('Search error:', error);
+    console.error('Error stack:', error.stack);
+    console.error('Error message:', error.message);
     return {
       statusCode: 500,
       headers,
-      body: JSON.stringify({ error: 'Search failed', details: error.message })
+      body: JSON.stringify({
+        error: 'Search failed',
+        details: error.message,
+        stack: error.stack,
+        providers: TorrentSearchApi.getActiveProviders()
+      })
     };
   }
 };
