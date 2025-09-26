@@ -331,8 +331,9 @@ This ensures that Supabase authentication redirects work correctly in production
 
 - **Frontend**: React 18, Vite, Tailwind CSS
 - **Backend**: Supabase (Auth + Database)
+- **Torrent Search**: [Torrent-Search-API](https://github.com/JimmyLaurent/torrent-search-api) (Multi-provider aggregator)
 - **Streaming**: WebTorrent (loaded from CDN)
-- **API**: YTS.mx API for torrent search
+- **API**: Torrent-Search-API aggregates from 15+ providers (1337x, ThePirateBay, Rarbg, YTS, etc.)
 - **Deployment**: Netlify
 ```
 
@@ -340,11 +341,14 @@ This ensures that Supabase authentication redirects work correctly in production
 
 ## Features
 
-- Search torrents from public APIs (YTS for movies)
-- Stream videos using HTML5 video (mocked for demo; WebTorrent integration requires additional setup)
-- Resume playback
-- User history and favorites
-- Responsive UI with Tailwind CSS
+- 🔍 **Advanced Torrent Search**: Search across 15+ torrent providers simultaneously (1337x, ThePirateBay, Rarbg, YTS, Torrent9, etc.)
+- 🎬 **Stream Videos Directly**: HTML5 video player with WebTorrent integration
+- ⏯️ **Professional Video Controls**: Playback speed, PiP mode, custom controls, keyboard shortcuts
+- 🔐 **User Authentication**: Secure login/signup with Supabase
+- 📚 **Watch History & Favorites**: Track your viewing history and save favorite torrents
+- 📱 **PWA Support**: Install as native app with offline capabilities
+- ♿ **Accessibility**: Full keyboard navigation, ARIA labels, screen reader support
+- 🎨 **Modern UI**: Responsive design with dark theme and smooth animations
 
 ## Deployment
 

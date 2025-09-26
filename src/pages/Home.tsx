@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
+import TorrentSearchApi from 'torrent-search-api';
 import SearchBar from '../components/SearchBar';
 import ContinueWatching from '../components/ContinueWatching';
 import TorrentCard from '../components/TorrentCard';
@@ -8,62 +9,39 @@ const Home = () => {
   const [searchParams, setSearchParams] = useState(null);
   const [error, setError] = useState('');
 
+  // Initialize Torrent Search API with public providers
+  useEffect(() => {
+    TorrentSearchApi.enablePublicProviders();
+  }, []);
+
   const { data: results = [], isLoading: loading, error: queryError } = useQuery({
     queryKey: ['torrents', searchParams],
     queryFn: async () => {
       if (!searchParams) return [];
 
       const { query, category, resolution, minSeeders } = searchParams;
-      let url = `https://yts.mx/api/v2/list_movies.json?query_term=${encodeURIComponent(query)}&limit=20`;
-
-      // Add filters if provided
-      if (category && category !== 'all') {
-        // Map categories to YTS genres
-        const genreMap = {
-          movies: 'action', // YTS doesn't have a generic movies category
-          tv: '', // YTS is primarily movies
-          anime: 'animation'
-        };
-        if (genreMap[category]) {
-          url += `&genre=${genreMap[category]}`;
-        }
-      }
-      if (resolution && resolution !== 'all') {
-        url += `&quality=${resolution}`;
-      }
-      if (minSeeders > 0) {
-        url += `&minimum_rating=${minSeeders}`;
-      }
 
       try {
-        const response = await fetch(url, {
-          mode: 'cors',
-          headers: {
-            'Accept': 'application/json',
-          }
-        });
+        // Use Torrent-Search-API for comprehensive search
+        const torrents = await TorrentSearchApi.search(query, category === 'all' ? undefined : category, 50);
 
-        if (!response.ok) {
-          throw new Error(`Search failed: ${response.status} ${response.statusText}`);
-        }
+        // Map and filter results to match our format
+        const mappedTorrents = torrents
+          .filter(torrent => !minSeeders || (torrent.seeds || 0) >= minSeeders)
+          .filter(torrent => !resolution || resolution === 'all' || torrent.title.toLowerCase().includes(resolution.toLowerCase()))
+          .map(torrent => ({
+            title: torrent.title || 'Unknown Title',
+            size: torrent.size || 'Unknown',
+            seeders: torrent.seeds || 0,
+            magnet: torrent.magnet || '',
+            poster_url: torrent.desc || '' // Some providers might have poster URLs
+          }))
+          .slice(0, 20); // Limit to 20 results
 
-        const data = await response.json();
-        if (data.status !== 'ok') {
-          throw new Error('Search API returned an error');
-        }
-
-        const torrents = data.data.movies?.map(movie => ({
-          title: movie.title,
-          size: movie.torrents[0]?.size || 'Unknown',
-          seeders: movie.torrents[0]?.seeds || 0,
-          magnet: movie.torrents[0]?.hash ? `magnet:?xt=urn:btih:${movie.torrents[0].hash}` : '',
-          poster_url: movie.medium_cover_image
-        })).filter(t => !minSeeders || t.seeders >= minSeeders) || [];
-
-        return torrents;
+        return mappedTorrents;
       } catch (error) {
-        console.error('YTS API Error:', error);
-        throw new Error('Unable to connect to torrent search service. The service may be temporarily unavailable.');
+        console.error('Torrent Search API Error:', error);
+        throw new Error('Unable to search torrents. The search service may be temporarily unavailable.');
       }
     },
     enabled: !!searchParams,
