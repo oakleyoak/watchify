@@ -18,6 +18,9 @@ const Player = () => {
   const { magnet } = useParams();
   const [resumeTime, setResumeTime] = useState(0);
 
+  const decodedMagnet = decodeURIComponent(magnet);
+  const magnetHash = hashMagnet(decodedMagnet);
+
   useEffect(() => {
     console.log('Player: Component mounted with magnet param:', magnet);
     
@@ -31,16 +34,14 @@ const Player = () => {
         }
         
         if (user) {
-          const decodedMagnet = decodeURIComponent(magnet);
           console.log('Player: Decoded magnet:', decodedMagnet.substring(0, 50) + '...');
-          const torrentId = hashMagnet(decodedMagnet);
-          console.log('Player: Hashed torrent ID:', torrentId);
+          console.log('Player: Hashed torrent ID:', magnetHash);
           
           const { data, error } = await supabase
             .from('user_history')
             .select('progress_seconds')
             .eq('user_id', user.id)
-            .eq('torrent_id', torrentId)
+            .eq('torrent_id', magnetHash)
             .single();
           
           if (error && error.code !== 'PGRST116') { // PGRST116 is "not found" which is expected
@@ -59,14 +60,13 @@ const Player = () => {
       }
     };
     fetchResumeTime();
-  }, [magnet]);
+  }, [magnet, decodedMagnet, magnetHash]);
 
-  const decodedMagnet = decodeURIComponent(magnet);
   console.log('Player: Rendering VideoPlayer with magnet:', decodedMagnet.substring(0, 50) + '...');
 
   return (
     <div className="container mx-auto p-4">
-      <VideoPlayer magnet={decodedMagnet} resumeTime={resumeTime} />
+      <VideoPlayer magnet={decodedMagnet} magnetHash={magnetHash} resumeTime={resumeTime} />
     </div>
   );
 };

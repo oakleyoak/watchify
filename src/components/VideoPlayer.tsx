@@ -8,7 +8,80 @@ declare global {
   }
 }
 
-const VideoPlayer = ({ magnet, resumeTime }) => {
+// IndexedDB helper for storing downloaded torrents
+class TorrentStorage {
+  private db: IDBDatabase | null = null;
+
+  async init(): Promise<void> {
+    return new Promise((resolve, reject) => {
+      const request = indexedDB.open('WatchifyTorrents', 1);
+
+      request.onerror = () => reject(request.error);
+      request.onsuccess = () => {
+        this.db = request.result;
+        resolve();
+      };
+
+      request.onupgradeneeded = (event) => {
+        const db = (event.target as IDBOpenDBRequest).result;
+        if (!db.objectStoreNames.contains('torrents')) {
+          db.createObjectStore('torrents', { keyPath: 'magnetHash' });
+        }
+      };
+    });
+  }
+
+  async storeTorrent(magnetHash: string, blob: Blob, metadata: any): Promise<void> {
+    if (!this.db) await this.init();
+
+    return new Promise((resolve, reject) => {
+      const transaction = this.db!.transaction(['torrents'], 'readwrite');
+      const store = transaction.objectStore('torrents');
+
+      const torrentData = {
+        magnetHash,
+        blob,
+        metadata,
+        downloadedAt: new Date().toISOString(),
+        size: blob.size
+      };
+
+      const request = store.put(torrentData);
+      request.onerror = () => reject(request.error);
+      request.onsuccess = () => resolve();
+    });
+  }
+
+  async getTorrent(magnetHash: string): Promise<any> {
+    if (!this.db) await this.init();
+
+    return new Promise((resolve, reject) => {
+      const transaction = this.db!.transaction(['torrents'], 'readonly');
+      const store = transaction.objectStore('torrents');
+      const request = store.get(magnetHash);
+
+      request.onerror = () => reject(request.error);
+      request.onsuccess = () => resolve(request.result);
+    });
+  }
+
+  async listStoredTorrents(): Promise<any[]> {
+    if (!this.db) await this.init();
+
+    return new Promise((resolve, reject) => {
+      const transaction = this.db!.transaction(['torrents'], 'readonly');
+      const store = transaction.objectStore('torrents');
+      const request = store.getAll();
+
+      request.onerror = () => reject(request.error);
+      request.onsuccess = () => resolve(request.result);
+    });
+  }
+}
+
+const torrentStorage = new TorrentStorage();
+
+const VideoPlayer = ({ magnet, magnetHash, resumeTime }) => {
   const videoRef = useRef(null);
   const [client, setClient] = useState(null);
   const [torrent, setTorrent] = useState(null);
@@ -192,39 +265,65 @@ const VideoPlayer = ({ magnet, resumeTime }) => {
 
     const initWebTorrent = async () => {
       try {
-        // Load WebTorrent from a different CDN
-        console.log('VideoPlayer: Loading WebTorrent from alternative CDN...');
-        await new Promise((resolve, reject) => {
-          const script = document.createElement('script');
-          script.src = 'https://unpkg.com/webtorrent@2.1.4/webtorrent.min.js';
-          script.onload = () => {
-            console.log('VideoPlayer: WebTorrent loaded successfully from unpkg');
-            resolve(undefined);
-          };
-          script.onerror = (err) => {
-            console.error('VideoPlayer: Failed to load WebTorrent from unpkg, trying jsDelivr...', err);
-            // Try jsDelivr as fallback
-            const fallbackScript = document.createElement('script');
-            fallbackScript.src = 'https://cdn.jsdelivr.net/npm/webtorrent@2.0.0/webtorrent.min.js';
-            fallbackScript.onload = () => {
-              console.log('VideoPlayer: WebTorrent loaded successfully from jsDelivr fallback');
-              resolve(undefined);
-            };
-            fallbackScript.onerror = (fallbackErr) => {
-              console.error('VideoPlayer: Failed to load WebTorrent from all CDNs:', fallbackErr);
-              reject(fallbackErr);
-            };
-            document.head.appendChild(fallbackScript);
-          };
-          document.head.appendChild(script);
-        });
+        console.log('VideoPlayer: Checking if WebTorrent is already loaded...');
+        if (typeof window !== 'undefined' && window.WebTorrent) {
+          console.log('VideoPlayer: WebTorrent already available');
+          wtClient = new window.WebTorrent({
+            maxConns: 55, // Reduce connection limit for browser compatibility
+            webSeeds: true // Enable web seeds support
+          });
+          setClient(wtClient);
+          return;
+        }
 
-        console.log('VideoPlayer: Initializing WebTorrent client...');
-        wtClient = new window.WebTorrent();
+        console.log('VideoPlayer: WebTorrent not found, loading from CDN...');
+
+        // Try multiple CDNs in sequence
+        const cdns = [
+          'https://unpkg.com/webtorrent@2.1.4/webtorrent.min.js',
+          'https://cdn.jsdelivr.net/npm/webtorrent@2.1.4/webtorrent.min.js',
+          'https://cdn.jsdelivr.net/npm/webtorrent@2.0.0/webtorrent.min.js'
+        ];
+
+        let loaded = false;
+        for (const cdnUrl of cdns) {
+          if (loaded) break;
+
+          try {
+            console.log(`VideoPlayer: Trying CDN: ${cdnUrl}`);
+            await new Promise((resolve, reject) => {
+              const script = document.createElement('script');
+              script.src = cdnUrl;
+              script.onload = () => {
+                console.log(`VideoPlayer: Successfully loaded WebTorrent from ${cdnUrl}`);
+                loaded = true;
+                resolve(undefined);
+              };
+              script.onerror = (err) => {
+                console.warn(`VideoPlayer: Failed to load from ${cdnUrl}:`, err);
+                reject(err);
+              };
+              document.head.appendChild(script);
+            });
+          } catch (err) {
+            console.warn(`VideoPlayer: CDN ${cdnUrl} failed, trying next...`);
+            continue;
+          }
+        }
+
+        if (!loaded || !window.WebTorrent) {
+          throw new Error('All CDN sources failed to load WebTorrent. This is common due to browser security restrictions.');
+        }
+
+        console.log('VideoPlayer: Creating WebTorrent client...');
+        wtClient = new window.WebTorrent({
+          maxConns: 55, // Reduce connection limit for browser compatibility
+          webSeeds: true // Enable web seeds support
+        });
 
         wtClient.on('error', (err) => {
           console.error('VideoPlayer: WebTorrent client error:', err);
-          setError(`Torrent client error: ${err.message}. Try using an external torrent client with this magnet link: ${magnet}`);
+          setError(`WebTorrent client error: ${err.message}. WebTorrent has limitations in browsers. Try using an external torrent client instead.`);
           setLoading(false);
         });
 
@@ -232,11 +331,20 @@ const VideoPlayer = ({ magnet, resumeTime }) => {
           console.warn('VideoPlayer: WebTorrent warning:', err);
         });
 
-        console.log('VideoPlayer: WebTorrent client initialized successfully');
+        console.log('VideoPlayer: WebTorrent client created successfully');
         setClient(wtClient);
+
       } catch (err) {
         console.error('VideoPlayer: Failed to initialize WebTorrent:', err);
-        setError(`WebTorrent failed to load: ${err.message}. You can try using an external torrent client with this magnet link: ${magnet}`);
+        setError(`Failed to load WebTorrent: ${err.message}. 
+
+WebTorrent in browsers has significant limitations:
+• Requires active peers/seeders for the torrent
+• Browser security policies may block WebRTC connections
+• Some browsers disable torrenting entirely
+• Large files may exceed browser storage limits
+
+For reliable torrent playback, please use an external torrent client with the magnet link below.`);
         setLoading(false);
       }
     };
@@ -263,108 +371,155 @@ const VideoPlayer = ({ magnet, resumeTime }) => {
       return;
     }
 
-    console.log('VideoPlayer: Starting torrent download with magnet:', magnet.substring(0, 50) + '...');
+    console.log('VideoPlayer: Starting torrent with magnet:', magnet.substring(0, 50) + '...');
 
-    setLoading(true);
-    setError(null);
-    setIsDownloading(true);
-    setDownloadProgress(0);
-
-    try {
-      client.add(magnet, { destroyOnDone: false }, (torrent) => {
-        console.log('VideoPlayer: Torrent added successfully:', torrent.name);
-        setTorrent(torrent);
-        setTotalSize(torrent.length);
-
-        // Find the largest video file
-        const videoFiles = torrent.files.filter(file =>
-          file.name.match(/\.(mp4|mkv|avi|mov|wmv|flv|webm)$/i)
-        );
-
-        console.log('VideoPlayer: Found video files:', videoFiles.length);
-
-        if (videoFiles.length === 0) {
-          setError('No video files found in torrent. Try using an external torrent client with this magnet link: ' + magnet);
+    // First check if we already have this torrent stored locally
+    const checkStoredTorrent = async () => {
+      try {
+        const storedTorrent = await torrentStorage.getTorrent(magnetHash);
+        if (storedTorrent) {
+          console.log('VideoPlayer: Found stored torrent, playing from local storage');
+          const url = URL.createObjectURL(storedTorrent.blob);
+          videoRef.current.src = url;
           setLoading(false);
-          setIsDownloading(false);
+
+          // Resume from saved position
+          if (resumeTime > 0) {
+            videoRef.current.currentTime = resumeTime;
+          }
           return;
         }
+      } catch (err) {
+        console.warn('VideoPlayer: Error checking stored torrent:', err);
+      }
 
-        const videoFile = videoFiles.reduce((largest, current) =>
-          current.length > largest.length ? current : largest
-        );
+      // If not stored locally, proceed with download
+      startTorrentDownload();
+    };
 
-        console.log('VideoPlayer: Selected video file:', videoFile.name, 'Size:', videoFile.length);
-        setFile(videoFile);
+    const startTorrentDownload = () => {
+      console.log('VideoPlayer: Starting torrent download with magnet:', magnet.substring(0, 50) + '...');
 
-        // Update download progress
-        const updateProgress = () => {
-          const progress = torrent.progress * 100;
-          const downloaded = torrent.downloaded;
-          const speed = torrent.downloadSpeed;
+      setLoading(true);
+      setError(null);
+      setIsDownloading(true);
+      setDownloadProgress(0);
 
-          setDownloadProgress(progress);
-          setDownloadedSize(downloaded);
-          setDownloadSpeedState(speed);
+      try {
+        client.add(magnet, { destroyOnDone: false }, (torrent) => {
+          console.log('VideoPlayer: Torrent added successfully:', torrent.name);
+          setTorrent(torrent);
+          setTotalSize(torrent.length);
 
-          console.log(`VideoPlayer: Download progress: ${progress.toFixed(1)}%, Speed: ${(speed / 1024 / 1024).toFixed(2)} MB/s`);
+          // Find the largest video file
+          const videoFiles = torrent.files.filter(file =>
+            file.name.match(/\.(mp4|mkv|avi|mov|wmv|flv|webm)$/i)
+          );
 
-          if (progress >= 100) {
-            console.log('VideoPlayer: Download complete, creating video URL');
+          console.log('VideoPlayer: Found video files:', videoFiles.length);
+
+          if (videoFiles.length === 0) {
+            setError('No video files found in torrent. Try using an external torrent client with this magnet link: ' + magnet);
+            setLoading(false);
             setIsDownloading(false);
+            return;
+          }
 
-            // Create object URL for video
-            videoFile.getBlobURL((err, url) => {
-              if (err) {
-                console.error('VideoPlayer: Failed to get blob URL:', err);
-                setError('Failed to load video file. Try using an external torrent client with this magnet link: ' + magnet);
+          const videoFile = videoFiles.reduce((largest, current) =>
+            current.length > largest.length ? current : largest
+          );
+
+          console.log('VideoPlayer: Selected video file:', videoFile.name, 'Size:', videoFile.length);
+          setFile(videoFile);
+
+          // Update download progress
+          const updateProgress = () => {
+            const progress = torrent.progress * 100;
+            const downloaded = torrent.downloaded;
+            const speed = torrent.downloadSpeed;
+
+            setDownloadProgress(progress);
+            setDownloadedSize(downloaded);
+            setDownloadSpeedState(speed);
+
+            console.log(`VideoPlayer: Download progress: ${progress.toFixed(1)}%, Speed: ${(speed / 1024 / 1024).toFixed(2)} MB/s`);
+
+            if (progress >= 100) {
+              console.log('VideoPlayer: Download complete, creating video URL');
+              setIsDownloading(false);
+
+              // Create object URL for video
+              videoFile.getBlobURL((err, url) => {
+                if (err) {
+                  console.error('VideoPlayer: Failed to get blob URL:', err);
+                  setError('Failed to load video file. Try using an external torrent client with this magnet link: ' + magnet);
+                  setLoading(false);
+                  return;
+                }
+
+                console.log('VideoPlayer: Got blob URL, setting video src');
+                videoRef.current.src = url;
                 setLoading(false);
-                return;
-              }
 
-              console.log('VideoPlayer: Got blob URL, setting video src');
-              videoRef.current.src = url;
-              setLoading(false);
+                // Resume from saved position
+                if (resumeTime > 0) {
+                  videoRef.current.currentTime = resumeTime;
+                }
+              });
+            }
+          };
 
-              // Resume from saved position
-              if (resumeTime > 0) {
-                videoRef.current.currentTime = resumeTime;
+          // Set up progress monitoring
+          const progressInterval = setInterval(updateProgress, 1000);
+          updateProgress(); // Initial update
+
+          torrent.on('done', () => {
+            console.log('VideoPlayer: Torrent download completed');
+
+            // Store the downloaded torrent for offline playback
+            videoFile.getBlob((err, blob) => {
+              if (!err && blob) {
+                const metadata = {
+                  name: videoFile.name,
+                  size: videoFile.length,
+                  torrentName: torrent.name,
+                  downloadedAt: new Date().toISOString()
+                };
+
+                torrentStorage.storeTorrent(magnetHash, blob, metadata)
+                  .then(() => console.log('VideoPlayer: Torrent stored for offline playback'))
+                  .catch(err => console.warn('VideoPlayer: Failed to store torrent:', err));
               }
             });
-          }
-        };
 
-        // Set up progress monitoring
-        const progressInterval = setInterval(updateProgress, 1000);
-        updateProgress(); // Initial update
+            clearInterval(progressInterval);
+            updateProgress();
+          });
 
-        torrent.on('done', () => {
-          console.log('VideoPlayer: Torrent download completed');
-          clearInterval(progressInterval);
-          updateProgress();
+          torrent.on('error', (err) => {
+            console.error('VideoPlayer: Torrent error:', err);
+            clearInterval(progressInterval);
+            setError('Torrent download failed. Try using an external torrent client with this magnet link: ' + magnet);
+            setLoading(false);
+            setIsDownloading(false);
+          });
         });
 
-        torrent.on('error', (err) => {
-          console.error('VideoPlayer: Torrent error:', err);
-          clearInterval(progressInterval);
-          setError('Torrent download failed. Try using an external torrent client with this magnet link: ' + magnet);
+        client.on('error', (err) => {
+          console.error('VideoPlayer: Client error:', err);
+          setError('Torrent client error. Try using an external torrent client with this magnet link: ' + magnet);
           setLoading(false);
           setIsDownloading(false);
         });
-      });
-
-      client.on('error', (err) => {
-        console.error('VideoPlayer: Client error:', err);
-        setError('Torrent client error. Try using an external torrent client with this magnet link: ' + magnet);
+      } catch (error) {
+        console.error('VideoPlayer: Failed to add torrent:', error);
+        setError('Failed to initialize torrent download. Try using an external torrent client with this magnet link: ' + magnet);
         setLoading(false);
         setIsDownloading(false);
-      });
-    } catch (error) {
-      console.error('VideoPlayer: Failed to add torrent:', error);
-      setError('Failed to initialize torrent download. Try using an external torrent client with this magnet link: ' + magnet);
-      setLoading(false);
-      setIsDownloading(false);
-    }
+      }
+    };
+
+    checkStoredTorrent();
 
     return () => {
       if (torrent) {
@@ -372,7 +527,7 @@ const VideoPlayer = ({ magnet, resumeTime }) => {
         setTorrent(null);
       }
     };
-  }, [client, magnet, resumeTime]);
+  }, [client, magnet, magnetHash, resumeTime]);
 
   const saveProgress = async () => {
     const { data: { user } } = await supabase.auth.getUser();
