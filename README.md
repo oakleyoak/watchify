@@ -11,8 +11,10 @@ A modern, feature-rich torrent streaming platform built with cutting-edge web te
 ## ✨ Features
 
 ### 🎯 Core Features
-- 🔍 **Advanced Torrent Search**: Search torrents with category, resolution, and seeder filters
-- 🎬 **Direct Streaming**: Stream torrents instantly using WebTorrent technology
+- 🔍 **Advanced Search**: Search torrents or YouTube videos with category filters
+- 🎬 **Dual Streaming**: Stream torrents via WebTorrent OR watch YouTube videos directly
+- 🎥 **YouTube Integration**: Search and stream YouTube videos with professional player
+- 🧲 **Torrent Streaming**: Direct torrent streaming using WebTorrent technology
 - 👤 **User Authentication**: Secure signup/login with Supabase Auth
 - 📚 **Smart History**: Automatic progress tracking and resume functionality
 - ❤️ **Favorites System**: Save and manage your favorite torrents

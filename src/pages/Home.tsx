@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
+import { useNavigate } from 'react-router-dom';
 import SearchBar from '../components/SearchBar';
 import ContinueWatching from '../components/ContinueWatching';
 import TorrentCard from '../components/TorrentCard';
@@ -7,13 +8,14 @@ import TorrentCard from '../components/TorrentCard';
 const Home = () => {
   const [searchParams, setSearchParams] = useState(null);
   const [error, setError] = useState('');
+  const navigate = useNavigate();
 
   const { data: results = [], isLoading: loading, error: queryError } = useQuery({
     queryKey: ['torrents', searchParams],
     queryFn: async () => {
       if (!searchParams) return [];
 
-      const { query, category, resolution, minSeeders } = searchParams;
+      const { query, category, resolution } = searchParams;
 
       try {
         // Call Netlify Function for torrent search
@@ -42,7 +44,6 @@ const Home = () => {
 
         // Filter and map results
         const mappedTorrents = (data.results || [])
-          .filter(torrent => !minSeeders || (torrent.seeders || 0) >= minSeeders)
           .filter(torrent => !resolution || resolution === 'all' || torrent.title.toLowerCase().includes(resolution.toLowerCase()))
           .map(torrent => ({
             title: torrent.title || 'Unknown Title',
@@ -71,7 +72,12 @@ const Home = () => {
     }
   }, [queryError]);
 
-  const handleSearch = (query, category, resolution, minSeeders) => {
+  const handleStreamSelect = (stream) => {
+    // Navigate to player with the selected stream
+    navigate(`/player?magnet=${encodeURIComponent(stream.magnet)}&title=${encodeURIComponent(stream.title)}`);
+  };
+
+  const handleSearch = (query, category, resolution) => {
     if (!query.trim()) {
       setError('Please enter a search query');
       setSearchParams(null);
@@ -79,7 +85,7 @@ const Home = () => {
     }
 
     setError('');
-    setSearchParams({ query, category, resolution, minSeeders });
+    setSearchParams({ query, category, resolution });
   };
 
   return (
@@ -87,7 +93,7 @@ const Home = () => {
       <section aria-labelledby="search-section">
         <h2 id="search-section" className="sr-only">Torrent Search</h2>
         <div id="search">
-          <SearchBar onSearch={handleSearch} />
+          <SearchBar onSearch={handleSearch} onStreamSelect={handleStreamSelect} />
         </div>
       </section>
 

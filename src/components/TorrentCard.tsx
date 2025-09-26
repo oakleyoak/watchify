@@ -73,33 +73,38 @@ const TorrentCard = ({ torrent, onDelete, showDelete = false }) => {
 
   return (
     <motion.article
-      className="bg-gray-800 p-4 rounded cursor-pointer focus-within:ring-2 focus-within:ring-blue-500"
+      className="bg-gradient-to-br from-slate-800 to-slate-900 p-6 rounded-2xl shadow-xl border border-slate-700/50 hover:border-slate-600/50 transition-all duration-300 cursor-pointer focus-within:ring-2 focus-within:ring-blue-500 group"
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.3 }}
       whileHover={{
         scale: 1.02,
-        boxShadow: "0 10px 25px rgba(0,0,0,0.3)"
+        boxShadow: "0 20px 40px rgba(0,0,0,0.4)"
       }}
       whileTap={{ scale: 0.98 }}
       role="article"
       aria-labelledby={`torrent-title-${torrent.magnet?.slice(-10)}`}
     >
       {torrent.poster_url && (
-        <motion.img
-          src={torrent.poster_url}
-          alt={`Poster for ${torrent.title}`}
-          className="w-full h-48 object-cover rounded mb-3"
+        <motion.div
+          className="relative overflow-hidden rounded-xl mb-4"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ delay: 0.2, duration: 0.3 }}
-          loading="lazy"
-        />
+        >
+          <motion.img
+            src={torrent.poster_url}
+            alt={`Poster for ${torrent.title}`}
+            className="w-full h-48 object-cover transition-transform duration-300 group-hover:scale-105"
+            loading="lazy"
+          />
+          <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+        </motion.div>
       )}
 
       <motion.h3
         id={`torrent-title-${torrent.magnet?.slice(-10)}`}
-        className="text-lg font-bold mb-2"
+        className="text-xl font-bold text-white mb-3 line-clamp-2 leading-tight"
         initial={{ opacity: 0, x: -20 }}
         animate={{ opacity: 1, x: 0 }}
         transition={{ delay: 0.1, duration: 0.3 }}
@@ -108,21 +113,45 @@ const TorrentCard = ({ torrent, onDelete, showDelete = false }) => {
       </motion.h3>
 
       <motion.div
-        className="text-sm text-gray-300 space-y-1"
+        className="space-y-2 mb-4"
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={{ delay: 0.2, duration: 0.3 }}
         aria-label="Torrent details"
       >
-        <p><span className="sr-only">File size: </span>{torrent.size}</p>
-        <p><span className="sr-only">Number of seeders: </span>{torrent.seeders}</p>
-        {torrent.year && <p><span className="sr-only">Release year: </span>{torrent.year}</p>}
-        {torrent.rating && <p><span className="sr-only">Rating: </span>{torrent.rating}/10</p>}
+        <div className="flex items-center text-slate-300 text-sm">
+          <svg className="w-4 h-4 mr-2 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+          </svg>
+          <span>{torrent.size}</span>
+        </div>
+        <div className="flex items-center text-slate-300 text-sm">
+          <svg className="w-4 h-4 mr-2 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+          </svg>
+          <span>{torrent.seeders} seeders</span>
+        </div>
+        {torrent.year && (
+          <div className="flex items-center text-slate-300 text-sm">
+            <svg className="w-4 h-4 mr-2 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+            </svg>
+            <span>{torrent.year}</span>
+          </div>
+        )}
+        {torrent.rating && (
+          <div className="flex items-center text-slate-300 text-sm">
+            <svg className="w-4 h-4 mr-2 text-yellow-400" fill="currentColor" viewBox="0 0 24 24">
+              <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
+            </svg>
+            <span>{torrent.rating}/10</span>
+          </div>
+        )}
       </motion.div>
 
       {error && (
         <motion.div
-          className="text-red-500 text-sm mt-2"
+          className="text-red-400 text-sm mb-3 p-2 bg-red-900/20 rounded-lg border border-red-800/50"
           initial={{ opacity: 0, scale: 0.8 }}
           animate={{ opacity: 1, scale: 1 }}
           transition={{ duration: 0.2 }}
@@ -134,47 +163,58 @@ const TorrentCard = ({ torrent, onDelete, showDelete = false }) => {
       )}
 
       <motion.div
-        className="flex space-x-2 mt-3"
+        className="flex flex-col space-y-2"
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.3, duration: 0.3 }}
         role="group"
         aria-label="Torrent actions"
       >
-        <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
+        <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
           <Link
             to={`/player/${encodeURIComponent(torrent.magnet)}`}
             onClick={addToHistory}
-            className="inline-block bg-blue-600 hover:bg-blue-700 focus:bg-blue-700 text-white px-3 py-1 rounded text-sm transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="w-full inline-flex items-center justify-center px-4 py-3 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white font-semibold rounded-xl transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:ring-offset-slate-900 shadow-lg hover:shadow-xl"
             aria-label={`Watch ${torrent.title}`}
           >
-            ▶️ Watch
+            <svg className="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 24 24">
+              <path d="M8 5v14l11-7z"/>
+            </svg>
+            Watch Now
           </Link>
         </motion.div>
 
-        <motion.button
-          onClick={addToFavorites}
-          className="bg-yellow-600 hover:bg-yellow-700 focus:bg-yellow-700 text-white px-3 py-1 rounded text-sm transition-colors focus:outline-none focus:ring-2 focus:ring-yellow-500"
-          whileHover={{ scale: 1.05 }}
-          whileTap={{ scale: 0.95 }}
-          aria-label={`Add ${torrent.title} to favorites`}
-          type="button"
-        >
-          ⭐ Favorite
-        </motion.button>
-
-        {showDelete && (
+        <div className="grid grid-cols-2 gap-2">
           <motion.button
-            onClick={handleDelete}
-            className="bg-red-600 hover:bg-red-700 focus:bg-red-700 text-white px-3 py-1 rounded text-sm transition-colors focus:outline-none focus:ring-2 focus:ring-red-500"
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
-            aria-label={`Delete ${torrent.title} from list`}
+            onClick={addToFavorites}
+            className="inline-flex items-center justify-center px-3 py-2 bg-gradient-to-r from-yellow-600 to-yellow-700 hover:from-yellow-700 hover:to-yellow-800 text-white font-medium rounded-lg transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:ring-offset-2 focus:ring-offset-slate-900 text-sm"
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.98 }}
+            aria-label={`Add ${torrent.title} to favorites`}
             type="button"
           >
-            🗑️ Delete
+            <svg className="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 24 24">
+              <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
+            </svg>
+            Favorite
           </motion.button>
-        )}
+
+          {showDelete && (
+            <motion.button
+              onClick={handleDelete}
+              className="inline-flex items-center justify-center px-3 py-2 bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white font-medium rounded-lg transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 focus:ring-offset-slate-900 text-sm"
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+              aria-label={`Delete ${torrent.title} from list`}
+              type="button"
+            >
+              <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+              </svg>
+              Delete
+            </motion.button>
+          )}
+        </div>
       </motion.div>
     </motion.article>
   );

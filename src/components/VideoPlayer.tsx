@@ -261,117 +261,21 @@ const VideoPlayer = ({ magnet, magnetHash, resumeTime }) => {
   }, []);
 
   useEffect(() => {
-    let wtClient;
-
-    const initWebTorrent = async () => {
-      try {
-        console.log('VideoPlayer: Checking if WebTorrent is already loaded...');
-        if (typeof window !== 'undefined' && window.WebTorrent) {
-          console.log('VideoPlayer: WebTorrent already available');
-          wtClient = new window.WebTorrent({
-            maxConns: 55, // Reduce connection limit for browser compatibility
-            webSeeds: true // Enable web seeds support
-          });
-          setClient(wtClient);
-          return;
-        }
-
-        console.log('VideoPlayer: WebTorrent not found, loading from CDN...');
-
-        // Try multiple CDNs in sequence
-        const cdns = [
-          'https://unpkg.com/webtorrent@2.1.4/webtorrent.min.js',
-          'https://cdn.jsdelivr.net/npm/webtorrent@2.1.4/webtorrent.min.js',
-          'https://cdn.jsdelivr.net/npm/webtorrent@2.0.0/webtorrent.min.js'
-        ];
-
-        let loaded = false;
-        for (const cdnUrl of cdns) {
-          if (loaded) break;
-
-          try {
-            console.log(`VideoPlayer: Trying CDN: ${cdnUrl}`);
-            await new Promise((resolve, reject) => {
-              const script = document.createElement('script');
-              script.src = cdnUrl;
-              script.onload = () => {
-                console.log(`VideoPlayer: Successfully loaded WebTorrent from ${cdnUrl}`);
-                loaded = true;
-                resolve(undefined);
-              };
-              script.onerror = (err) => {
-                console.warn(`VideoPlayer: Failed to load from ${cdnUrl}:`, err);
-                reject(err);
-              };
-              document.head.appendChild(script);
-            });
-          } catch (err) {
-            console.warn(`VideoPlayer: CDN ${cdnUrl} failed, trying next...`);
-            continue;
-          }
-        }
-
-        if (!loaded || !window.WebTorrent) {
-          throw new Error('All CDN sources failed to load WebTorrent. This is common due to browser security restrictions.');
-        }
-
-        console.log('VideoPlayer: Creating WebTorrent client...');
-        wtClient = new window.WebTorrent({
-          maxConns: 55, // Reduce connection limit for browser compatibility
-          webSeeds: true // Enable web seeds support
-        });
-
-        wtClient.on('error', (err) => {
-          console.error('VideoPlayer: WebTorrent client error:', err);
-          setError(`WebTorrent client error: ${err.message}. WebTorrent has limitations in browsers. Try using an external torrent client instead.`);
-          setLoading(false);
-        });
-
-        wtClient.on('warning', (err) => {
-          console.warn('VideoPlayer: WebTorrent warning:', err);
-        });
-
-        console.log('VideoPlayer: WebTorrent client created successfully');
-        setClient(wtClient);
-
-      } catch (err) {
-        console.error('VideoPlayer: Failed to initialize WebTorrent:', err);
-        setError(`Failed to load WebTorrent: ${err.message}. 
-
-WebTorrent in browsers has significant limitations:
-• Requires active peers/seeders for the torrent
-• Browser security policies may block WebRTC connections
-• Some browsers disable torrenting entirely
-• Large files may exceed browser storage limits
-
-For reliable torrent playback, please use an external torrent client with the magnet link below.`);
-        setLoading(false);
-      }
-    };
-
-    // Only try to load WebTorrent if we're in a browser environment
-    if (typeof window !== 'undefined') {
-      initWebTorrent();
-    } else {
-      setError('Video player not available in this environment');
-      setLoading(false);
-    }
-
-    return () => {
-      if (wtClient) {
-        console.log('VideoPlayer: Destroying WebTorrent client');
-        wtClient.destroy();
-      }
-    };
-  }, []);
-
-  useEffect(() => {
-    if (!client || !magnet) {
-      console.log('VideoPlayer: Missing client or magnet', { client: !!client, magnet: !!magnet });
+    if (!magnet) {
+      console.log('VideoPlayer: Missing magnet');
       return;
     }
 
-    console.log('VideoPlayer: Starting torrent with magnet:', magnet.substring(0, 50) + '...');
+    // Check if this is a YouTube video
+    if (magnet.startsWith('youtube:')) {
+      const videoId = magnet.replace('youtube:', '');
+      console.log('VideoPlayer: Detected YouTube video:', videoId);
+      setLoading(false);
+      setError(null);
+      return;
+    }
+
+    console.log('VideoPlayer: Starting server-side streaming with magnet:', magnet.substring(0, 50) + '...');
 
     // First check if we already have this torrent stored locally
     const checkStoredTorrent = async () => {
@@ -393,175 +297,107 @@ For reliable torrent playback, please use an external torrent client with the ma
         console.warn('VideoPlayer: Error checking stored torrent:', err);
       }
 
-      // If not stored locally, proceed with download
-      startTorrentDownload();
+      // If not stored locally, start server-side streaming
+      startServerStreaming();
     };
 
-    const startTorrentDownload = () => {
-      console.log('VideoPlayer: Starting torrent download with magnet:', magnet.substring(0, 50) + '...');
-
-      setLoading(true);
-      setError(null);
-      setIsDownloading(true);
-      setDownloadProgress(0);
-
+    const startServerStreaming = async () => {
       try {
-        client.add(magnet, { destroyOnDone: false }, (torrent) => {
-          console.log('VideoPlayer: Torrent added successfully:', torrent.name);
-          setTorrent(torrent);
-          setTotalSize(torrent.length);
+        setLoading(true);
+        setError(null);
+        console.log('VideoPlayer: Attempting server-side streaming...');
 
-          // Find the largest video file
-          const videoFiles = torrent.files.filter(file =>
-            file.name.match(/\.(mp4|mkv|avi|mov|wmv|flv|webm)$/i)
-          );
+        // Use server-side streaming endpoint
+        const streamUrl = `/.netlify/functions/stream?magnet=${encodeURIComponent(magnet)}`;
+        console.log('VideoPlayer: Streaming URL:', streamUrl);
 
-          console.log('VideoPlayer: Found video files:', videoFiles.length);
+        // Set the video source to the streaming endpoint
+        videoRef.current.src = streamUrl;
+        videoRef.current.load();
 
-          if (videoFiles.length === 0) {
-            setError('No video files found in torrent. Try using an external torrent client with this magnet link: ' + magnet);
-            setLoading(false);
-            setIsDownloading(false);
-            return;
-          }
-
-          const videoFile = videoFiles.reduce((largest, current) =>
-            current.length > largest.length ? current : largest
-          );
-
-          console.log('VideoPlayer: Selected video file:', videoFile.name, 'Size:', videoFile.length);
-          setFile(videoFile);
-
-          // Update download progress
-          const updateProgress = () => {
-            const progress = torrent.progress * 100;
-            const downloaded = torrent.downloaded;
-            const speed = torrent.downloadSpeed;
-
-            setDownloadProgress(progress);
-            setDownloadedSize(downloaded);
-            setDownloadSpeedState(speed);
-
-            console.log(`VideoPlayer: Download progress: ${progress.toFixed(1)}%, Speed: ${(speed / 1024 / 1024).toFixed(2)} MB/s`);
-
-            if (progress >= 100) {
-              console.log('VideoPlayer: Download complete, creating video URL');
-              setIsDownloading(false);
-
-              // Create object URL for video
-              videoFile.getBlobURL((err, url) => {
-                if (err) {
-                  console.error('VideoPlayer: Failed to get blob URL:', err);
-                  setError('Failed to load video file. Try using an external torrent client with this magnet link: ' + magnet);
-                  setLoading(false);
-                  return;
-                }
-
-                console.log('VideoPlayer: Got blob URL, setting video src');
-                videoRef.current.src = url;
-                setLoading(false);
-
-                // Resume from saved position
-                if (resumeTime > 0) {
-                  videoRef.current.currentTime = resumeTime;
-                }
-              });
-            }
-          };
-
-          // Set up progress monitoring
-          const progressInterval = setInterval(updateProgress, 1000);
-          updateProgress(); // Initial update
-
-          torrent.on('done', () => {
-            console.log('VideoPlayer: Torrent download completed');
-
-            // Store the downloaded torrent for offline playback
-            videoFile.getBlob((err, blob) => {
-              if (!err && blob) {
-                const metadata = {
-                  name: videoFile.name,
-                  size: videoFile.length,
-                  torrentName: torrent.name,
-                  downloadedAt: new Date().toISOString()
-                };
-
-                torrentStorage.storeTorrent(magnetHash, blob, metadata)
-                  .then(() => console.log('VideoPlayer: Torrent stored for offline playback'))
-                  .catch(err => console.warn('VideoPlayer: Failed to store torrent:', err));
-              }
-            });
-
-            clearInterval(progressInterval);
-            updateProgress();
-          });
-
-          torrent.on('error', (err) => {
-            console.error('VideoPlayer: Torrent error:', err);
-            clearInterval(progressInterval);
-            setError('Torrent download failed. Try using an external torrent client with this magnet link: ' + magnet);
-            setLoading(false);
-            setIsDownloading(false);
-          });
-        });
-
-        client.on('error', (err) => {
-          console.error('VideoPlayer: Client error:', err);
-          setError('Torrent client error. Try using an external torrent client with this magnet link: ' + magnet);
+        // Set up event listeners for streaming
+        const handleCanPlay = () => {
+          console.log('VideoPlayer: Video can play, starting playback');
           setLoading(false);
-          setIsDownloading(false);
-        });
-      } catch (error) {
-        console.error('VideoPlayer: Failed to add torrent:', error);
-        setError('Failed to initialize torrent download. Try using an external torrent client with this magnet link: ' + magnet);
+          if (resumeTime > 0) {
+            videoRef.current.currentTime = resumeTime;
+          }
+        };
+
+        const handleError = (e) => {
+          console.error('VideoPlayer: Video streaming error:', e);
+          setError('Failed to stream video from server. The torrent may not be available or the server is experiencing issues.');
+          setLoading(false);
+        };
+
+        const handleLoadStart = () => {
+          console.log('VideoPlayer: Started loading video stream');
+          setLoading(true);
+        };
+
+        const handleProgress = () => {
+          // Update buffering progress
+          if (videoRef.current && videoRef.current.buffered.length > 0) {
+            const buffered = videoRef.current.buffered.end(0);
+            const duration = videoRef.current.duration;
+            if (duration > 0) {
+              setDownloadProgress((buffered / duration) * 100);
+            }
+          }
+        };
+
+        videoRef.current.addEventListener('canplay', handleCanPlay);
+        videoRef.current.addEventListener('error', handleError);
+        videoRef.current.addEventListener('loadstart', handleLoadStart);
+        videoRef.current.addEventListener('progress', handleProgress);
+
+        // Clean up event listeners on unmount
+        return () => {
+          if (videoRef.current) {
+            videoRef.current.removeEventListener('canplay', handleCanPlay);
+            videoRef.current.removeEventListener('error', handleError);
+            videoRef.current.removeEventListener('loadstart', handleLoadStart);
+            videoRef.current.removeEventListener('progress', handleProgress);
+          }
+        };
+
+      } catch (err) {
+        console.error('VideoPlayer: Server streaming failed:', err);
+        setError(`Server streaming failed: ${err.message}.
+
+Server-side streaming provides more reliable playback than browser-based torrenting, but requires:
+• Active torrent with available peers
+• Server resources to handle the stream
+• Network connectivity to the streaming server
+
+If streaming fails, try downloading the torrent first using an external client.`);
         setLoading(false);
-        setIsDownloading(false);
       }
     };
 
     checkStoredTorrent();
-
-    return () => {
-      if (torrent) {
-        torrent.destroy();
-        setTorrent(null);
-      }
-    };
-  }, [client, magnet, magnetHash, resumeTime]);
-
-  const saveProgress = async () => {
+  }, [magnet, magnetHash, resumeTime]);  const saveProgress = useCallback(async () => {
     const { data: { user } } = await supabase.auth.getUser();
-    if (user && videoRef.current && file) {
-      // Hash the magnet URL for database storage
-      const hashMagnet = (magnet: string): string => {
-        let hash = 0;
-        for (let i = 0; i < magnet.length; i++) {
-          const char = magnet.charCodeAt(i);
-          hash = ((hash << 5) - hash) + char;
-          hash = hash & hash; // Convert to 32-bit integer
-        }
-        return Math.abs(hash).toString(36);
-      };
-
+    if (user && videoRef.current && magnet) {
       await supabase
         .from('user_history')
         .upsert({
           user_id: user.id,
-          torrent_id: hashMagnet(magnet),
+          torrent_id: magnetHash,
           magnet_url: magnet,
-          title: file.name,
+          title: 'Streaming Video', // Since we don't have file info from server streaming
           progress_seconds: videoRef.current.currentTime,
           last_watched_at: new Date().toISOString()
         });
     }
-  };
+  }, [magnet, magnetHash]);
 
   useEffect(() => {
-    if (!file) return;
+    if (!magnet) return;
 
     const interval = setInterval(saveProgress, 10000);
     return () => clearInterval(interval);
-  }, [file]);
+  }, [magnet, saveProgress]);
 
   const handleTimeUpdate = () => {
     if (videoRef.current) {
@@ -606,40 +442,13 @@ For reliable torrent playback, please use an external torrent client with the ma
   };
 
   return (
-    <div className="video-player bg-black">
-      {loading && isDownloading && (
-        <div className="flex items-center justify-center h-64 text-white">
+    <div className="video-player bg-black min-h-screen">
+      {loading && (
+        <div className="flex items-center justify-center min-h-64 text-white">
           <div className="text-center">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto mb-4"></div>
-            <p className="text-lg mb-2">Downloading torrent...</p>
-            <div className="w-64 bg-gray-700 rounded-full h-2 mb-2">
-              <div
-                className="bg-blue-500 h-2 rounded-full transition-all duration-300"
-                style={{ width: `${downloadProgress}%` }}
-              ></div>
-            </div>
-            <p className="text-sm text-gray-300">
-              {downloadProgress.toFixed(1)}% complete
-              {downloadSpeedState > 0 && (
-                <span className="ml-2">
-                  ({(downloadSpeedState / 1024 / 1024).toFixed(2)} MB/s)
-                </span>
-              )}
-            </p>
-            {totalSize > 0 && (
-              <p className="text-xs text-gray-400 mt-1">
-                {(downloadedSize / 1024 / 1024 / 1024).toFixed(2)} GB of {(totalSize / 1024 / 1024 / 1024).toFixed(2)} GB
-              </p>
-            )}
-          </div>
-        </div>
-      )}
-
-      {loading && !isDownloading && (
-        <div className="flex items-center justify-center h-64 text-white">
-          <div className="text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto mb-4"></div>
-            <p>Preparing video...</p>
+            <p className="text-lg mb-2">Connecting to stream...</p>
+            <p className="text-sm text-gray-300">Setting up video stream from server</p>
           </div>
         </div>
       )}
@@ -647,209 +456,177 @@ For reliable torrent playback, please use an external torrent client with the ma
       {error && (
         <div className="flex items-center justify-center min-h-64 text-white p-6">
           <div className="text-center max-w-md">
-            <p className="text-xl mb-4">⚠️</p>
-            <p className="mb-4">{error}</p>
-            <div className="bg-gray-800 p-4 rounded mb-4">
-              <p className="text-sm text-gray-300 mb-2">Magnet Link:</p>
-              <p className="text-xs text-blue-400 break-all font-mono">{magnet}</p>
+            <div className="text-red-400 mb-4">
+              <svg className="w-16 h-16 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z" />
+              </svg>
             </div>
-            <div className="space-y-2">
-              <button
-                onClick={() => navigator.clipboard.writeText(magnet)}
-                className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded mr-2"
-              >
-                Copy Magnet Link
-              </button>
-              <button
-                onClick={() => window.open(`magnet:?${magnet.split('magnet:?')[1]}`, '_blank')}
-                className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded"
-              >
-                Open in Torrent Client
-              </button>
+            <h3 className="text-xl font-semibold mb-2">Streaming Unavailable</h3>
+            <p className="text-gray-300 mb-4">{error}</p>
+            <div className="bg-slate-800 p-4 rounded-lg text-left">
+              <p className="text-sm text-slate-300 mb-2">Alternative options:</p>
+              <ul className="text-sm text-slate-400 space-y-1">
+                <li>• Use an external torrent client</li>
+                <li>• Check if the torrent has active peers</li>
+                <li>• Try again later</li>
+              </ul>
             </div>
-            <p className="text-xs text-gray-400 mt-4">
-              Use an external torrent client like qBittorrent, uTorrent, or Transmission to download and play this video.
-            </p>
+            {magnet && (
+              <div className="mt-4">
+                <p className="text-xs text-gray-400 mb-2">Magnet Link:</p>
+                <div className="bg-slate-800 p-2 rounded text-xs font-mono break-all text-slate-300">
+                  {magnet}
+                </div>
+                <div className="flex space-x-2 mt-2">
+                  <button
+                    onClick={() => navigator.clipboard.writeText(magnet)}
+                    className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded text-sm transition-colors"
+                  >
+                    📋 Copy Link
+                  </button>
+                  <button
+                    onClick={() => window.open(magnet, '_blank')}
+                    className="bg-green-600 hover:bg-green-700 text-white px-3 py-1 rounded text-sm transition-colors"
+                  >
+                    🌐 Open Externally
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       )}
 
-      <div
-        className="relative group"
-        onMouseMove={handleMouseMove}
-        onMouseLeave={handleMouseLeave}
-      >
-        <video
-          ref={videoRef}
-          onTimeUpdate={handleTimeUpdate}
-          onLoadedMetadata={handleLoadedMetadata}
-          onPlay={resetControlsTimeout}
-          onPause={() => setShowControls(true)}
-          className="w-full max-h-screen bg-black"
-          style={{ display: loading ? 'none' : 'block' }}
-          playsInline
-        />
+      {magnet && !error && (
+        <div className="relative bg-black group" onMouseMove={handleMouseMove} onMouseLeave={handleMouseLeave}>
+          {magnet.startsWith('youtube:') ? (
+            // YouTube iframe player
+            <iframe
+              src={`https://www.youtube.com/embed/${magnet.replace('youtube:', '')}?autoplay=1&rel=0`}
+              className="w-full h-96 md:h-[600px]"
+              frameBorder="0"
+              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+              allowFullScreen
+              title="YouTube video player"
+            />
+          ) : (
+            <>
+            {/* Regular video element for torrents */}
+            <video
+              ref={videoRef}
+              className="w-full h-auto"
+              controls={!showControls}
+              onTimeUpdate={handleTimeUpdate}
+              onLoadedMetadata={handleLoadedMetadata}
+              onPlay={resetControlsTimeout}
+              onPause={() => setShowControls(true)}
+              onError={(e) => {
+                console.error('Video element error:', e);
+                setError('Video playback failed. The stream may be unavailable.');
+              }}
+              preload="metadata"
+              playsInline
+            />
 
-        {/* Custom Controls Overlay */}
-        {!loading && !error && (
-          <div
-            className={`absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-black/20 transition-opacity duration-300 ${
-              showControls ? 'opacity-100' : 'opacity-0'
-            }`}
-          >
-            {/* Top Controls */}
-            <div className="absolute top-0 left-0 right-0 p-4 flex justify-between items-center">
-              <div className="text-white text-sm font-medium truncate max-w-md">
-                {file?.name}
-              </div>
-              <div className="flex space-x-2">
+            {/* Custom Controls Overlay - only for torrent videos */}
+            {showControls && (
+              <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-4">
+              <div className="flex items-center space-x-4 text-white">
                 <button
-                  onClick={togglePictureInPicture}
-                  className="bg-black/50 hover:bg-black/70 text-white p-2 rounded transition-colors"
-                  title="Picture-in-Picture"
-                  aria-label="Toggle picture-in-picture mode"
+                  onClick={() => videoRef.current?.paused ? videoRef.current.play() : videoRef.current?.pause()}
+                  className="p-2 hover:bg-white/20 rounded transition-colors"
+                  aria-label={videoRef.current?.paused ? 'Play' : 'Pause'}
                 >
-                  📺
+                  {videoRef.current?.paused ? (
+                    <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
+                      <path d="M8 5v14l11-7z"/>
+                    </svg>
+                  ) : (
+                    <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
+                      <path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/>
+                    </svg>
+                  )}
                 </button>
-                <button
-                  onClick={toggleFullscreen}
-                  className="bg-black/50 hover:bg-black/70 text-white p-2 rounded transition-colors"
-                  title={isFullscreen ? 'Exit Fullscreen' : 'Enter Fullscreen'}
-                  aria-label={isFullscreen ? 'Exit fullscreen' : 'Enter fullscreen'}
-                >
-                  {isFullscreen ? '⛶' : '⛶'}
-                </button>
-              </div>
-            </div>
 
-            {/* Center Play/Pause Button */}
-            <div className="absolute inset-0 flex items-center justify-center">
-              <button
-                onClick={() => {
-                  if (videoRef.current?.paused) {
-                    videoRef.current.play();
-                  } else {
-                    videoRef.current?.pause();
-                  }
-                }}
-                className="bg-black/50 hover:bg-black/70 text-white p-4 rounded-full transition-all duration-200 transform hover:scale-110"
-                aria-label={videoRef.current?.paused ? 'Play' : 'Pause'}
-              >
-                {videoRef.current?.paused ? '▶️' : '⏸️'}
-              </button>
-            </div>
-
-            {/* Bottom Controls */}
-            <div className="absolute bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-black/80 to-transparent">
-              {/* Progress Bar */}
-              <div className="mb-4">
-                <div className="relative bg-gray-600 h-1 rounded cursor-pointer" onClick={(e) => {
-                  const rect = e.currentTarget.getBoundingClientRect();
-                  const percent = (e.clientX - rect.left) / rect.width;
-                  seekTo(percent * duration);
-                }}>
-                  <div
-                    className="bg-blue-500 h-full rounded transition-all duration-100"
-                    style={{ width: `${progress}%` }}
-                  ></div>
-                </div>
-                <div className="flex justify-between text-xs text-white mt-1">
-                  <span>{formatTime(currentTime)}</span>
-                  <span>{formatTime(duration)}</span>
-                </div>
-              </div>
-
-              {/* Control Buttons */}
-              <div className="flex items-center justify-between">
-                <div className="flex items-center space-x-4">
-                  {/* Skip Backward */}
-                  <button
-                    onClick={() => skipBackward(10)}
-                    className="text-white hover:text-blue-400 transition-colors"
-                    aria-label="Skip backward 10 seconds"
-                  >
-                    ⏪
-                  </button>
-
-                  {/* Play/Pause */}
-                  <button
-                    onClick={() => {
-                      if (videoRef.current?.paused) {
-                        videoRef.current.play();
-                      } else {
-                        videoRef.current?.pause();
-                      }
-                    }}
-                    className="text-white hover:text-blue-400 text-xl transition-colors"
-                    aria-label={videoRef.current?.paused ? 'Play' : 'Pause'}
-                  >
-                    {videoRef.current?.paused ? '▶️' : '⏸️'}
-                  </button>
-
-                  {/* Skip Forward */}
-                  <button
-                    onClick={() => skipForward(10)}
-                    className="text-white hover:text-blue-400 transition-colors"
-                    aria-label="Skip forward 10 seconds"
-                  >
-                    ⏩
-                  </button>
-
-                  {/* Volume */}
-                  <div className="flex items-center space-x-2">
-                    <button
-                      onClick={toggleMute}
-                      className="text-white hover:text-blue-400 transition-colors"
-                      aria-label={isMuted ? 'Unmute' : 'Mute'}
-                    >
-                      {isMuted ? '🔇' : '🔊'}
-                    </button>
-                    <input
-                      type="range"
-                      min="0"
-                      max="1"
-                      step="0.1"
-                      value={volume}
-                      onChange={(e) => changeVolume(parseFloat(e.target.value))}
-                      className="w-20 h-1 bg-gray-600 rounded-lg appearance-none cursor-pointer slider"
-                      aria-label="Volume"
-                    />
-                  </div>
+                <div className="flex-1 flex items-center space-x-2">
+                  <span className="text-sm">{formatTime(currentTime)}</span>
+                  <input
+                    type="range"
+                    min="0"
+                    max={duration || 0}
+                    value={currentTime}
+                    onChange={(e) => seekTo(Number(e.target.value))}
+                    className="flex-1 h-1 bg-white/30 rounded appearance-none cursor-pointer"
+                  />
+                  <span className="text-sm">{formatTime(duration)}</span>
                 </div>
 
-                <div className="flex items-center space-x-4">
-                  {/* Playback Speed */}
-                  <select
-                    value={playbackSpeed}
-                    onChange={(e) => changePlaybackSpeed(parseFloat(e.target.value))}
-                    className="bg-black/50 text-white text-sm px-2 py-1 rounded border border-gray-600 focus:border-blue-500 focus:outline-none"
-                    aria-label="Playback speed"
+                <div className="flex items-center space-x-2">
+                  <button
+                    onClick={toggleMute}
+                    className="p-2 hover:bg-white/20 rounded transition-colors"
+                    aria-label={isMuted ? 'Unmute' : 'Mute'}
                   >
-                    <option value="0.25">0.25x</option>
-                    <option value="0.5">0.5x</option>
-                    <option value="0.75">0.75x</option>
-                    <option value="1">1x</option>
-                    <option value="1.25">1.25x</option>
-                    <option value="1.5">1.5x</option>
-                    <option value="2">2x</option>
-                  </select>
+                    {isMuted ? (
+                      <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" clipRule="evenodd" />
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2" />
+                      </svg>
+                    ) : (
+                      <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" />
+                      </svg>
+                    )}
+                  </button>
+                  <input
+                    type="range"
+                    min="0"
+                    max="1"
+                    step="0.1"
+                    value={volume}
+                    onChange={(e) => changeVolume(Number(e.target.value))}
+                    className="w-20 h-1 bg-white/30 rounded appearance-none cursor-pointer"
+                  />
+                </div>
 
-                  {/* Torrent Info */}
-                  <div className="text-white text-xs space-y-1">
-                    <div>Progress: {progress.toFixed(1)}%</div>
-                    <div>↓ {formatSpeed(downloadSpeed)}</div>
-                  </div>
+                <div className="flex items-center space-x-1">
+                  <button
+                    onClick={() => changePlaybackSpeed(playbackSpeed === 1 ? 1.25 : playbackSpeed === 1.25 ? 1.5 : playbackSpeed === 1.5 ? 2 : 1)}
+                    className="px-2 py-1 text-xs bg-white/20 hover:bg-white/30 rounded transition-colors"
+                  >
+                    {playbackSpeed}x
+                  </button>
+                  <button
+                    onClick={togglePictureInPicture}
+                    className="p-2 hover:bg-white/20 rounded transition-colors"
+                    aria-label="Picture in Picture"
+                  >
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+                    </svg>
+                  </button>
+                  <button
+                    onClick={toggleFullscreen}
+                    className="p-2 hover:bg-white/20 rounded transition-colors"
+                    aria-label="Fullscreen"
+                  >
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m0 0l-5-5m11 5l5-5m0 0v4m0-4h-4" />
+                    </svg>
+                  </button>
                 </div>
               </div>
             </div>
-          </div>
-        )}
-      </div>
+          )}
+          </>
+          )}
+        </div>
+      )}
 
       {/* Keyboard Shortcuts Info */}
       {!loading && !error && (
-        <div className="mt-4 text-gray-400 text-xs text-center">
-          <p>Keyboard shortcuts: Space (play/pause), ←→ (seek), ↑↓ (volume), F (fullscreen), M (mute), P (PiP)</p>
+        <div className="mt-4 text-center text-slate-400 text-xs">
+          <p>Keyboard shortcuts: Space (play/pause), ←→ (seek ±10s), ↑↓ (volume), F (fullscreen), M (mute), P (PiP)</p>
         </div>
       )}
     </div>
