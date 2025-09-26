@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 
 interface SearchBarProps {
-  onSearch: (query: string, category: string, resolution: string, minSeeders: number, turkish: boolean) => void;
+  onSearch: (query: string, category: string, resolution: string, minSeeders: number) => void;
 }
 
 const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
@@ -9,11 +9,10 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
   const [category, setCategory] = useState<string>('all');
   const [resolution, setResolution] = useState<string>('all');
   const [minSeeders, setMinSeeders] = useState<number>(0);
-  const [turkish, setTurkish] = useState<boolean>(false);
 
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    onSearch(query, category, resolution, minSeeders, turkish);
+    onSearch(query, category, resolution, minSeeders);
   };
 
   return (
@@ -84,20 +83,6 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
           <div id="seeders-help" className="sr-only">
             Only show torrents with at least this many seeders
           </div>
-        </div>
-
-        <div className="flex items-center">
-          <label htmlFor="turkish-content" className="flex items-center text-white cursor-pointer">
-            <input
-              id="turkish-content"
-              type="checkbox"
-              checked={turkish}
-              onChange={(e: React.ChangeEvent<HTMLInputElement>) => setTurkish(e.target.checked)}
-              className="mr-2 w-4 h-4 text-blue-600 bg-gray-800 border-gray-600 rounded focus:ring-blue-500 focus:ring-2"
-              aria-label="Include Turkish content in search"
-            />
-            🇹🇷 Turkish
-          </label>
         </div>
 
         <button

@@ -27,7 +27,7 @@ exports.handler = async (event, context) => {
   }
 
   try {
-    const { query, category, limit = 20, turkish = false } = event.queryStringParameters || {};
+    const { query, category, limit = 20 } = event.queryStringParameters || {};
 
     if (!query) {
       return {
@@ -44,12 +44,11 @@ exports.handler = async (event, context) => {
     const searchQueries = [query];
     
     // Add Turkish language variations for better Turkish content discovery
-    if (turkish === 'true' || (!query.toLowerCase().includes('turk') && !query.toLowerCase().includes('türk'))) {
+    if (!query.toLowerCase().includes('turk') && !query.toLowerCase().includes('türk')) {
       searchQueries.push(`${query} turk`);
       searchQueries.push(`${query} türk`);
       searchQueries.push(`${query} türkçe`);
       searchQueries.push(`${query} altyazı`);
-      searchQueries.push(`${query} türkçe dublaj`);
     }
 
     // Search torrents from all queries

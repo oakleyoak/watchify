@@ -21,6 +21,23 @@ const VideoPlayer = ({ magnet, resumeTime }) => {
   const [currentTime, setCurrentTime] = useState(0);
   const controlsTimeoutRef = useRef(null);
 
+  // Validate magnet URL
+  useEffect(() => {
+    if (!magnet) {
+      setError('No magnet link provided');
+      setLoading(false);
+      return;
+    }
+
+    if (!magnet.startsWith('magnet:?')) {
+      setError(`Invalid magnet link format. Link: ${magnet.substring(0, 50)}...`);
+      setLoading(false);
+      return;
+    }
+
+    console.log('VideoPlayer: Valid magnet URL detected');
+  }, [magnet]);
+
   const toggleFullscreen = () => {
     if (!document.fullscreenElement) {
       videoRef.current?.requestFullscreen();
@@ -185,7 +202,7 @@ const VideoPlayer = ({ magnet, resumeTime }) => {
         setClient(wtClient);
       } catch (err) {
         console.error('Failed to load WebTorrent:', err);
-        setError('WebTorrent not available - using basic video player');
+        setError(`WebTorrent failed to load. You can try using an external torrent client with this magnet link: ${magnet}`);
         setLoading(false);
       }
     };
@@ -206,59 +223,82 @@ const VideoPlayer = ({ magnet, resumeTime }) => {
   }, []);
 
   useEffect(() => {
-    if (!client || !magnet) return;
+    if (!client || !magnet) {
+      console.log('VideoPlayer: Missing client or magnet', { client: !!client, magnet: !!magnet });
+      return;
+    }
+
+    console.log('VideoPlayer: Starting torrent with magnet:', magnet.substring(0, 50) + '...');
 
     setLoading(true);
     setError(null);
     setProgress(0);
 
-    client.add(magnet, (torrent) => {
-      setTorrent(torrent);
+    try {
+      client.add(magnet, (torrent) => {
+        console.log('VideoPlayer: Torrent added successfully:', torrent.name);
+        setTorrent(torrent);
 
-      // Find the largest video file
-      const videoFiles = torrent.files.filter(file =>
-        file.name.match(/\.(mp4|mkv|avi|mov|wmv|flv|webm)$/i)
-      );
+        // Find the largest video file
+        const videoFiles = torrent.files.filter(file =>
+          file.name.match(/\.(mp4|mkv|avi|mov|wmv|flv|webm)$/i)
+        );
 
-      if (videoFiles.length === 0) {
-        setError('No video files found in torrent');
-        setLoading(false);
-        return;
-      }
+        console.log('VideoPlayer: Found video files:', videoFiles.length);
 
-      const videoFile = videoFiles.reduce((largest, current) =>
-        current.length > largest.length ? current : largest
-      );
-
-      setFile(videoFile);
-
-      // Create object URL for video
-      videoFile.getBlobURL((err, url) => {
-        if (err) {
-          setError('Failed to load video file');
+        if (videoFiles.length === 0) {
+          setError('No video files found in torrent');
           setLoading(false);
           return;
         }
 
-        videoRef.current.src = url;
-        setLoading(false);
+        const videoFile = videoFiles.reduce((largest, current) =>
+          current.length > largest.length ? current : largest
+        );
 
-        // Resume from saved position
-        if (resumeTime > 0) {
-          videoRef.current.currentTime = resumeTime;
-        }
+        console.log('VideoPlayer: Selected video file:', videoFile.name, 'Size:', videoFile.length);
+        setFile(videoFile);
+
+        // Create object URL for video
+        videoFile.getBlobURL((err, url) => {
+          if (err) {
+            console.error('VideoPlayer: Failed to get blob URL:', err);
+            setError('Failed to load video file');
+            setLoading(false);
+            return;
+          }
+
+          console.log('VideoPlayer: Got blob URL, setting video src');
+          videoRef.current.src = url;
+          setLoading(false);
+
+          // Resume from saved position
+          if (resumeTime > 0) {
+            videoRef.current.currentTime = resumeTime;
+          }
+        });
+
+        // Update progress
+        const updateProgress = () => {
+          setProgress(torrent.progress * 100);
+          setDownloadSpeed(torrent.downloadSpeed);
+          setUploadSpeed(torrent.uploadSpeed);
+        };
+
+        torrent.on('download', updateProgress);
+        torrent.on('upload', updateProgress);
       });
 
-      // Update progress
-      const updateProgress = () => {
-        setProgress(torrent.progress * 100);
-        setDownloadSpeed(torrent.downloadSpeed);
-        setUploadSpeed(torrent.uploadSpeed);
-      };
-
-      torrent.on('download', updateProgress);
-      torrent.on('upload', updateProgress);
-    });
+      client.on('error', (err) => {
+        console.error('VideoPlayer: Client error:', err);
+        setError('Torrent client error');
+        setLoading(false);
+      });
+    } catch (error) {
+      console.error('VideoPlayer: Failed to add torrent:', error);
+      setError('Failed to initialize torrent');
+      setLoading(false);
+    }
 
     return () => {
       if (torrent) {
