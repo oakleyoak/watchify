@@ -5,7 +5,7 @@
   "main": "electron/main.cjs",
   "homepage": "./",
   "scripts": {
-    "dev": "concurrently \"npm run dev:electron\" \"npm run dev:vite\"",
+    "dev": "concurrently \"npm run dev:vite\" \"sleep 3 && npm run dev:electron\"",
     "dev:vite": "vite",
     "dev:electron": "cross-env NODE_ENV=development electron .",
     "build": "vite build",
@@ -69,7 +69,8 @@
     "util": "^0.12.5",
     "vite": "^5.4.20",
     "vite-plugin-node-polyfills": "^0.24.0",
-    "vitest": "^2.1.8"
+    "vitest": "^2.1.8",
+    "wait-on": "^9.0.1"
   },
   "build": {
     "appId": "com.watchify.app",

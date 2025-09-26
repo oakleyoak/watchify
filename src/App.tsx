@@ -2,7 +2,6 @@ import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { Suspense, lazy } from 'react';
 import Header from './components/Header.tsx';
 import ProtectedRoute from './components/ProtectedRoute.tsx';
-import PWAInstallPrompt from './components/PWAInstallPrompt.tsx';
 import SkipLinks from './components/SkipLinks.tsx';
 
 // Lazy load page components
@@ -37,7 +36,6 @@ function App() {
             <Route path="/favorites" element={<ProtectedRoute><Favorites /></ProtectedRoute>} />
           </Routes>
         </Suspense>
-        <PWAInstallPrompt />
       </div>
     </Router>
   );

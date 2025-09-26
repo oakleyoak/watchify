@@ -34,7 +34,7 @@ A modern, professional torrent streaming desktop application built with React, T
 - **Reduced Motion**: Respects user accessibility settings
 
 ### 🚀 Modern Architecture
-- **Serverless Backend**: Netlify Functions for API proxying
+- **Direct API Integration**: Torrent-Search-API runs directly in Electron
 - **Type-Safe**: Full TypeScript implementation
 - **Optimized Performance**: Code splitting, lazy loading, and caching
 - **Error Boundaries**: Graceful error handling throughout
@@ -239,8 +239,7 @@ src/
 │   ├── Header.tsx           # Navigation and branding
 │   ├── SearchBar.tsx        # Search interface
 │   ├── TorrentCard.tsx      # Content cards
-│   ├── VideoPlayer.tsx      # Media player
-│   ├── PWAInstallPrompt.tsx # PWA installation
+│   ├── ContinueWatching.tsx # Resume playback
 │   ├── ProtectedRoute.tsx   # Auth protection
 │   ├── ErrorBoundary.tsx    # Error handling
 │   └── SkipLinks.tsx        # Accessibility
@@ -255,9 +254,9 @@ src/
 ├── main.tsx         # Application entry
 └── index.css        # Global styles
 
-netlify/
-└── functions/       # Serverless functions
-    └── search.js           # Torrent search API
+electron/
+├── main.cjs         # Electron main process
+└── preload.js       # IPC preload script
 ```
 
 ## 🤝 Contributing
@@ -283,12 +282,13 @@ We welcome contributions! Please follow these steps:
 
 ## 🙏 Acknowledgments
 
-- **WebTorrent** - Client-side torrent streaming technology
-- **YTS & Pirate Bay** - Torrent search APIs
+- **Electron** - Cross-platform desktop app framework
+- **VLC Media Player** - Professional video playback
+- **Torrent-Search-API** - Multi-provider torrent search
 - **Supabase** - Backend-as-a-service platform
 - **Framer Motion** - Animation library
 - **Tailwind CSS** - CSS framework
-- **Netlify** - Hosting and serverless platform
+- **React & TypeScript** - Modern web development
 
 ---
 
@@ -419,21 +419,40 @@ Watchify is built with accessibility as a core principle:
 - **High Contrast Support**: Automatic adaptation
 - **Focus Management**: Logical tab order and focus indicators
 
-## 🚀 Deployment
+## 🚀 Building & Distribution
 
-### Netlify (Recommended)
-1. Connect your GitHub repository to Netlify
-2. Set build command: `npm run build`
-3. Set publish directory: `dist`
-4. Add environment variables:
-   - `VITE_SUPABASE_URL`
-   - `VITE_SUPABASE_ANON_KEY`
-
-### Manual Deployment
+### Development
 ```bash
-npm run build
-# Deploy the 'dist' folder to your hosting service
+# Start development environment (Vite + Electron)
+npm run dev
+
+# Start Vite dev server only
+npm run dev:vite
+
+# Start Electron app only
+npm run dev:electron
 ```
+
+### Building for Distribution
+```bash
+# Build and package for current platform
+npm run build:electron
+
+# Build only (no packaging)
+npm run build
+
+# Package for distribution (creates installers)
+npm run electron:dist
+
+# Package without installer (just the app)
+npm run electron:pack
+```
+
+### Distribution Files
+The build process creates:
+- **Windows**: `.exe` installer and portable version
+- **macOS**: `.dmg` and `.pkg` installers
+- **Linux**: `.AppImage` and `.deb` packages
 
 ## 📊 Performance
 
@@ -577,21 +596,14 @@ Before deploying, you must update the Supabase configuration to use your product
 
 This ensures that Supabase authentication redirects work correctly in production instead of using localhost URLs.
 
-### 🔧 Netlify Functions
-
-The app uses Netlify Functions to run Torrent-Search-API server-side:
-- **Function**: `netlify/functions/search.js`
-- **Purpose**: Provides browser-compatible torrent search using Torrent-Search-API
-- **CORS**: Properly configured for cross-origin requests
-
 ## Tech Stack
 
-- **Frontend**: React 18, Vite, Tailwind CSS
-- **Backend**: Supabase (Auth + Database) + Netlify Functions
-- **Torrent Search**: [Torrent-Search-API](https://github.com/JimmyLaurent/torrent-search-api) via Netlify Functions
-- **Streaming**: WebTorrent (loaded from CDN)
+- **Desktop App**: Electron with React 18, Vite, Tailwind CSS
+- **Backend**: Supabase (Auth + Database)
+- **Torrent Search**: [Torrent-Search-API](https://github.com/JimmyLaurent/torrent-search-api) running directly in Electron
+- **Video Playback**: VLC Media Player integration
 - **API**: Torrent-Search-API aggregates from 15+ providers (1337x, ThePirateBay, Rarbg, YTS, etc.)
-- **Deployment**: Netlify (with serverless functions)
+- **Distribution**: Electron Builder (Windows, macOS, Linux)
 ```
 
 5. Run `npm run dev` to start the development server.

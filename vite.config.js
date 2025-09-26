@@ -5,6 +5,10 @@ import react from '@vitejs/plugin-react'
 export default defineConfig({
   plugins: [react()],
   base: './', // Important for Electron to load assets correctly
+  server: {
+    port: 5173,
+    strictPort: true
+  },
   build: {
     outDir: 'dist',
     assetsDir: 'assets'

@@ -24,13 +24,15 @@ function createWindow() {
 
   // Load the app
   const startUrl = isDev
-    ? 'http://localhost:5173'
+    ? process.env.VITE_DEV_SERVER_URL || 'http://localhost:5173'
     : `file://${path.join(__dirname, '../dist/index.html')}`;
 
+  console.log('Loading URL:', startUrl);
   mainWindow.loadURL(startUrl);
 
   // Show window when ready to prevent visual flash
   mainWindow.once('ready-to-show', () => {
+    console.log('Window ready to show');
     mainWindow.show();
     if (isDev) {
       mainWindow.webContents.openDevTools();

@@ -31,11 +31,11 @@ echo 3. Create .env.local with:
 echo    VITE_SUPABASE_URL=your_supabase_url
 echo    VITE_SUPABASE_ANON_KEY=your_supabase_anon_key
 echo 4. Run the SQL commands in the README to create database tables
-echo 5. Start development with: npm run dev
+echo 5. Make sure VLC Media Player is installed
+echo 6. Start development with: npm run dev
 echo.
-echo For production deployment:
-echo - Push to GitHub
-echo - Connect to Netlify
-echo - Set environment variables in Netlify dashboard
+echo For desktop app distribution:
+echo - Run: npm run build:electron (builds for current platform)
+echo - Run: npm run electron:dist (creates installers for all platforms)
 echo.
 pause

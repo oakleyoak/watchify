@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
+import TorrentSearchApi from 'torrent-search-api';
 import SearchBar from '../components/SearchBar';
 import ContinueWatching from '../components/ContinueWatching';
 import TorrentCard from '../components/TorrentCard';
@@ -18,39 +19,30 @@ const Home = () => {
       const { query, category, resolution } = searchParams;
 
       try {
-        // Call Netlify Function for torrent search
-        const params = new URLSearchParams({
-          query,
-          category,
-          limit: '50'
-        });
+        // Use torrent-search-api directly
+        const providers = ['1337x', 'ThePirateBay', 'Rarbg', 'Limetorrents', 'KickassTorrents', 'Yts'];
 
-        const response = await fetch(`/.netlify/functions/search?${params}`, {
-          method: 'GET',
-          headers: {
-            'Content-Type': 'application/json',
+        // Enable providers
+        providers.forEach(provider => {
+          try {
+            TorrentSearchApi.enableProvider(provider);
+          } catch (e) {
+            console.warn(`Failed to enable provider ${provider}:`, e);
           }
         });
 
-        if (!response.ok) {
-          throw new Error(`Search failed: ${response.status}`);
-        }
-
-        const data = await response.json();
-
-        if (data.error) {
-          throw new Error(data.error);
-        }
+        // Search for torrents
+        const searchResults = await TorrentSearchApi.search(query, category === 'all' ? 'All' : category, 50);
 
         // Filter and map results
-        const mappedTorrents = (data.results || [])
+        const mappedTorrents = searchResults
           .filter(torrent => !resolution || resolution === 'all' || torrent.title.toLowerCase().includes(resolution.toLowerCase()))
           .map(torrent => ({
             title: torrent.title || 'Unknown Title',
             size: torrent.size || 'Unknown',
-            seeders: torrent.seeders || 0,
+            seeders: torrent.seeds || 0,
             magnet: torrent.magnet || '',
-            poster_url: torrent.poster_url || ''
+            poster_url: torrent.poster || ''
           }))
           .slice(0, 20); // Limit to 20 results
 
