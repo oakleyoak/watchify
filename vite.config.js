@@ -37,9 +37,7 @@ export default defineConfig({
         return id.includes('utp-native') ||
                id.includes('dgram') ||
                id.includes('net') ||
-               id.includes('fs') ||
-               // Try externalizing motion-dom to prevent .mjs loading
-               id.includes('motion-dom');
+               id.includes('fs');
       },
       output: {
         // Ensure .mjs files are handled correctly
@@ -48,8 +46,12 @@ export default defineConfig({
     }
   },
   optimizeDeps: {
-    include: ['webtorrent', 'framer-motion'],
-    exclude: ['motion-dom']
+    include: ['webtorrent', 'framer-motion', 'motion-dom'],
+    esbuildOptions: {
+      loader: {
+        '.mjs': 'js'
+      }
+    }
   },
   // Add server config to handle .mjs files
   server: {
