@@ -106,6 +106,7 @@ const VideoPlayer = ({ magnet, magnetHash, resumeTime }) => {
   const [downloadedSize, setDownloadedSize] = useState(0);
   const controlsTimeoutRef = useRef(null);
   const [isVideoElementReady, setIsVideoElementReady] = useState(false);
+  const [webTorrentAvailable, setWebTorrentAvailable] = useState(false);
 
   // Validate magnet URL
   useEffect(() => {
@@ -123,6 +124,27 @@ const VideoPlayer = ({ magnet, magnetHash, resumeTime }) => {
 
     console.log('VideoPlayer: Valid magnet URL detected');
   }, [magnet]);
+
+  // Check WebTorrent availability
+  useEffect(() => {
+    const checkWebTorrent = () => {
+      if (typeof window !== 'undefined' && (window as any).WebTorrent) {
+        console.log('VideoPlayer: WebTorrent is available');
+        setWebTorrentAvailable(true);
+      } else {
+        console.log('VideoPlayer: WebTorrent is not available');
+        setWebTorrentAvailable(false);
+      }
+    };
+
+    // Check immediately
+    checkWebTorrent();
+
+    // Also check after a short delay in case the script is still loading
+    const timeout = setTimeout(checkWebTorrent, 2000);
+
+    return () => clearTimeout(timeout);
+  }, []);
 
   const toggleFullscreen = () => {
     if (!document.fullscreenElement) {
@@ -307,11 +329,13 @@ const VideoPlayer = ({ magnet, magnetHash, resumeTime }) => {
         // Initialize WebTorrent client
         if (!client) {
           const WebTorrent = (window as any).WebTorrent;
+          console.log('VideoPlayer: WebTorrent available:', !!WebTorrent);
           if (!WebTorrent) {
             throw new Error('WebTorrent not available. Please refresh the page.');
           }
 
           const newClient = new WebTorrent();
+          console.log('VideoPlayer: Created WebTorrent client:', newClient);
           setClient(newClient);
 
           // Set up client event listeners
@@ -395,17 +419,36 @@ const VideoPlayer = ({ magnet, magnetHash, resumeTime }) => {
           console.log('VideoPlayer: Streaming file:', videoFile.name, 'Size:', videoFile.length);
           setFile(videoFile);
 
-          // Use WebTorrent's built-in streaming method
-          // This is the CORRECT way to stream torrents - it handles buffering automatically
-          videoFile.appendTo(videoRef.current, {
-            autoplay: false,
-            controls: false
-          }, (err, elem) => {
-            if (err) {
-              console.error('VideoPlayer: Append to video failed:', err);
-              setError('Failed to stream video: ' + err.message);
-              setLoading(false);
-              return;
+          // Use manual streaming approach to avoid replacing the video element
+          // This preserves our custom controls and event listeners
+          const stream = videoFile.createReadStream();
+          const chunks: any[] = [];
+
+          console.log('VideoPlayer: Starting manual streaming for file:', videoFile.name);
+
+          stream.on('data', (chunk: Buffer) => {
+            chunks.push(chunk);
+            // Update download progress
+            const progress = (torrent.downloaded / torrent.length) * 100;
+            setDownloadProgress(progress);
+          });
+
+          stream.on('end', () => {
+            console.log('VideoPlayer: File stream ended, creating blob URL');
+            const blob = new Blob(chunks, { type: 'video/mp4' });
+            const url = URL.createObjectURL(blob);
+
+            // Store the torrent for future use
+            torrentStorage.storeTorrent(magnetHash, blob, {
+              name: videoFile.name,
+              size: videoFile.length,
+              downloadedAt: new Date().toISOString()
+            });
+
+            // Set video source only if element still exists
+            if (videoRef.current) {
+              videoRef.current.src = url;
+              videoRef.current.load();
             }
 
             console.log('VideoPlayer: Video streaming started successfully');
@@ -414,47 +457,35 @@ const VideoPlayer = ({ magnet, magnetHash, resumeTime }) => {
             const handleCanPlay = () => {
               console.log('VideoPlayer: Video can play, starting playback');
               setLoading(false);
-              if (resumeTime > 0) {
+              if (resumeTime > 0 && videoRef.current) {
                 videoRef.current.currentTime = resumeTime;
               }
             };
 
-            const handleVideoError = (e) => {
+            const handleVideoError = (e: Event) => {
               console.error('VideoPlayer: Video playback error:', e);
               setError('Video playback failed. The torrent file may be corrupted or incompatible.');
               setLoading(false);
             };
 
-            const handleLoadStart = () => {
-              console.log('VideoPlayer: Video load started');
-              setLoading(true);
-            };
-
-            const handleProgress = () => {
-              // Update buffering progress from video element
-              if (videoRef.current && videoRef.current.buffered.length > 0) {
-                const buffered = videoRef.current.buffered.end(0);
-                const duration = videoRef.current.duration;
-                if (duration > 0) {
-                  setDownloadProgress((buffered / duration) * 100);
-                }
-              }
-            };
-
-            videoRef.current.addEventListener('canplay', handleCanPlay);
-            videoRef.current.addEventListener('error', handleVideoError);
-            videoRef.current.addEventListener('loadstart', handleLoadStart);
-            videoRef.current.addEventListener('progress', handleProgress);
+            if (videoRef.current) {
+              videoRef.current.addEventListener('canplay', handleCanPlay);
+              videoRef.current.addEventListener('error', handleVideoError);
+            }
 
             // Clean up event listeners on unmount
             return () => {
               if (videoRef.current) {
                 videoRef.current.removeEventListener('canplay', handleCanPlay);
                 videoRef.current.removeEventListener('error', handleVideoError);
-                videoRef.current.removeEventListener('loadstart', handleLoadStart);
-                videoRef.current.removeEventListener('progress', handleProgress);
               }
             };
+          });
+
+          stream.on('error', (err: Error) => {
+            console.error('VideoPlayer: File stream error:', err);
+            setError('Failed to stream video file: ' + err.message);
+            setLoading(false);
           });
 
         });
@@ -550,6 +581,28 @@ If torrenting fails, try using YouTube search instead.`);
 
   return (
     <div className="video-player bg-black min-h-screen">
+      {!webTorrentAvailable && magnet && (
+        <div className="flex items-center justify-center min-h-64 text-white p-6">
+          <div className="text-center max-w-md">
+            <div className="text-yellow-400 mb-4">
+              <svg className="w-16 h-16 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z" />
+              </svg>
+            </div>
+            <h3 className="text-xl font-semibold mb-2">WebTorrent Not Available</h3>
+            <p className="text-gray-300 mb-4">
+              WebTorrent library failed to load. This may be due to network restrictions or browser compatibility.
+            </p>
+            <button
+              onClick={() => window.location.reload()}
+              className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg transition-colors"
+            >
+              Refresh Page
+            </button>
+          </div>
+        </div>
+      )}
+
       {loading && (
         <div className="flex items-center justify-center min-h-64 text-white">
           <div className="text-center">
