@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { supabase } from '../supabase';
-import { StreamingService, StreamStatus } from '../services/torrent';
+import { SimpleStreamingService, StreamStatus } from '../services/torrent/simpleStreamingService';
 import { logger } from '../utils/logger';
 
 interface VideoPlayerProps {
@@ -11,7 +11,7 @@ interface VideoPlayerProps {
 
 const VideoPlayer: React.FC<VideoPlayerProps> = ({ magnet, magnetHash, resumeTime = 0 }) => {
   const videoRef = useRef<HTMLVideoElement>(null);
-  const streamingServiceRef = useRef<StreamingService | null>(null);
+  const streamingServiceRef = useRef<SimpleStreamingService | null>(null);
 
   // UI State
   const [status, setStatus] = useState<StreamStatus>({ state: 'idle', progress: 0, downloadSpeed: 0, peers: 0, bufferHealth: 0 });
@@ -27,7 +27,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ magnet, magnetHash, resumeTim
 
   // Initialize streaming service
   useEffect(() => {
-    streamingServiceRef.current = new StreamingService();
+    streamingServiceRef.current = new SimpleStreamingService();
     logger.info('VideoPlayer', 'Streaming service initialized');
 
     return () => {
