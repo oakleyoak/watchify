@@ -13,12 +13,12 @@ const Player = () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (user) {
         const { data } = await supabase
-          .from('playback_logs')
-          .select('timestamp')
+          .from('user_history')
+          .select('progress_seconds')
           .eq('user_id', user.id)
-          .eq('magnet_uri', decodeURIComponent(magnet))
+          .eq('torrent_id', decodeURIComponent(magnet))
           .single();
-        if (data) setResumeTime(data.timestamp);
+        if (data) setResumeTime(data.progress_seconds);
       }
     };
     fetchResumeTime();

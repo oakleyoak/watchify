@@ -4,5 +4,15 @@ import { nodePolyfills } from 'vite-plugin-node-polyfills'
 
 // https://vitejs.dev/config/
 export default defineConfig({
-  plugins: [react(), nodePolyfills()],
+  plugins: [react(), nodePolyfills({
+    globals: {
+      Buffer: true,
+      global: true,
+      process: true,
+    },
+    protocolImports: true,
+  })],
+  define: {
+    global: 'globalThis',
+  },
 })

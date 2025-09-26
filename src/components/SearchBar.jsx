@@ -20,7 +20,7 @@ const SearchBar = ({ onSearch }) => {
         placeholder="Search torrents..."
         className="w-full p-2 mb-2 bg-gray-800 text-white rounded"
       />
-      <div className="flex space-x-2">
+      <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-2">
         <select value={category} onChange={(e) => setCategory(e.target.value)} className="p-2 bg-gray-800 text-white rounded">
           <option value="all">All Categories</option>
           <option value="movies">Movies</option>
@@ -39,7 +39,7 @@ const SearchBar = ({ onSearch }) => {
           placeholder="Min Seeders"
           className="p-2 bg-gray-800 text-white rounded"
         />
-        <button type="submit" className="p-2 bg-blue-600 text-white rounded">Search</button>
+        <button type="submit" className="p-2 bg-blue-600 text-white rounded hover:bg-blue-700">Search</button>
       </div>
     </form>
   );

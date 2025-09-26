@@ -1,44 +1,137 @@
 import { useEffect, useRef, useState } from 'react';
-// import WebTorrent from 'webtorrent';
+import WebTorrent from 'webtorrent';
 import { supabase } from '../supabase';
 
 const VideoPlayer = ({ magnet, resumeTime }) => {
   const videoRef = useRef(null);
+  const [client, setClient] = useState(null);
+  const [torrent, setTorrent] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [fileName, setFileName] = useState('sample.mp4');
-  const [fileSize, setFileSize] = useState(100000000); // 100MB
-  const [progress, setProgress] = useState(0);
+  const [error, setError] = useState(null);
+  const [file, setFile] = useState(null);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+
+  const toggleFullscreen = () => {
+    if (!document.fullscreenElement) {
+      videoRef.current?.requestFullscreen();
+      setIsFullscreen(true);
+    } else {
+      document.exitFullscreen();
+      setIsFullscreen(false);
+    }
+  };
 
   useEffect(() => {
-    // Mock torrent loading
-    setTimeout(() => {
-      setLoading(false);
-      if (resumeTime > 0) {
-        videoRef.current.currentTime = resumeTime;
-      }
-    }, 2000);
-
-    const saveProgress = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (user && videoRef.current) {
-        await supabase
-          .from('playback_logs')
-          .upsert({
-            user_id: user.id,
-            magnet_uri: magnet,
-            timestamp: videoRef.current.currentTime,
-            filename: fileName,
-            updated_at: new Date().toISOString()
-          });
-      }
+    const handleFullscreenChange = () => {
+      setIsFullscreen(!!document.fullscreenElement);
     };
 
-    const interval = setInterval(saveProgress, 10000);
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
+  }, []);
+
+  useEffect(() => {
+    const wtClient = new WebTorrent();
+    setClient(wtClient);
+
+    wtClient.on('error', (err) => {
+      console.error('WebTorrent error:', err);
+      setError('Failed to initialize torrent client');
+      setLoading(false);
+    });
 
     return () => {
-      clearInterval(interval);
+      if (torrent) {
+        torrent.destroy();
+      }
+      wtClient.destroy();
     };
-  }, [magnet, resumeTime, fileName]);
+  }, []);
+
+  useEffect(() => {
+    if (!client || !magnet) return;
+
+    setLoading(true);
+    setError(null);
+    setProgress(0);
+
+    client.add(magnet, (torrent) => {
+      setTorrent(torrent);
+
+      // Find the largest video file
+      const videoFiles = torrent.files.filter(file =>
+        file.name.match(/\.(mp4|mkv|avi|mov|wmv|flv|webm)$/i)
+      );
+
+      if (videoFiles.length === 0) {
+        setError('No video files found in torrent');
+        setLoading(false);
+        return;
+      }
+
+      const videoFile = videoFiles.reduce((largest, current) =>
+        current.length > largest.length ? current : largest
+      );
+
+      setFile(videoFile);
+
+      // Create object URL for video
+      videoFile.getBlobURL((err, url) => {
+        if (err) {
+          setError('Failed to load video file');
+          setLoading(false);
+          return;
+        }
+
+        videoRef.current.src = url;
+        setLoading(false);
+
+        // Resume from saved position
+        if (resumeTime > 0) {
+          videoRef.current.currentTime = resumeTime;
+        }
+      });
+
+      // Update progress
+      const updateProgress = () => {
+        setProgress(torrent.progress * 100);
+        setDownloadSpeed(torrent.downloadSpeed);
+        setUploadSpeed(torrent.uploadSpeed);
+      };
+
+      torrent.on('download', updateProgress);
+      torrent.on('upload', updateProgress);
+    });
+
+    return () => {
+      if (torrent) {
+        torrent.destroy();
+        setTorrent(null);
+      }
+    };
+  }, [client, magnet]);
+
+  const saveProgress = async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (user && videoRef.current && file) {
+      await supabase
+        .from('user_history')
+        .upsert({
+          user_id: user.id,
+          torrent_id: magnet,
+          title: file.name,
+          progress_seconds: videoRef.current.currentTime,
+          last_watched_at: new Date().toISOString()
+        });
+    }
+  };
+
+  useEffect(() => {
+    if (!file) return;
+
+    const interval = setInterval(saveProgress, 10000);
+    return () => clearInterval(interval);
+  }, [file]);
 
   const handleTimeUpdate = () => {
     if (videoRef.current) {
@@ -46,21 +139,44 @@ const VideoPlayer = ({ magnet, resumeTime }) => {
     }
   };
 
+  const formatSpeed = (bytesPerSecond) => {
+    if (bytesPerSecond === 0) return '0 B/s';
+    const units = ['B/s', 'KB/s', 'MB/s', 'GB/s'];
+    const i = Math.floor(Math.log(bytesPerSecond) / Math.log(1024));
+    return `${(bytesPerSecond / Math.pow(1024, i)).toFixed(1)} ${units[i]}`;
+  };
+
   return (
     <div className="video-player">
-      {loading && <div className="text-center">Loading torrent...</div>}
-      <video
-        ref={videoRef}
-        controls
-        onTimeUpdate={handleTimeUpdate}
-        className="w-full"
-        src="https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4" // Sample video
-      />
-      <div className="mt-2">
-        <p>File: {fileName}</p>
-        <p>Size: {(fileSize / 1024 / 1024).toFixed(2)} MB</p>
-        <p>Progress: {progress.toFixed(2)}%</p>
+      {loading && <div className="text-center text-white">Loading torrent...</div>}
+      {error && <div className="text-center text-red-500">{error}</div>}
+      <div className="relative">
+        <video
+          ref={videoRef}
+          controls
+          onTimeUpdate={handleTimeUpdate}
+          className="w-full max-h-screen"
+          style={{ display: loading ? 'none' : 'block' }}
+        />
+        {!loading && !error && (
+          <button
+            onClick={toggleFullscreen}
+            className="absolute top-2 right-2 bg-black bg-opacity-50 text-white p-2 rounded hover:bg-opacity-75"
+            title={isFullscreen ? 'Exit Fullscreen' : 'Enter Fullscreen'}
+          >
+            {isFullscreen ? '⛶' : '⛶'}
+          </button>
+        )}
       </div>
+      {!loading && !error && (
+        <div className="mt-2 text-white">
+          <p>File: {file?.name}</p>
+          <p>Size: {file ? (file.length / 1024 / 1024).toFixed(2) : 0} MB</p>
+          <p>Progress: {progress.toFixed(2)}%</p>
+          <p>Download: {formatSpeed(downloadSpeed)}</p>
+          <p>Upload: {formatSpeed(uploadSpeed)}</p>
+        </div>
+      )}
     </div>
   );
 };
