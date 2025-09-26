@@ -2,10 +2,14 @@
   "name": "watchify",
   "private": true,
   "version": "0.0.0",
-  "type": "module",
+  "main": "electron/main.cjs",
+  "homepage": "./",
   "scripts": {
-    "dev": "vite",
+    "dev": "concurrently \"npm run dev:electron\" \"npm run dev:vite\"",
+    "dev:vite": "vite",
+    "dev:electron": "electron .",
     "build": "vite build",
+    "build:electron": "npm run build && electron-builder",
     "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
     "lint:fix": "eslint . --ext ts,tsx --fix",
     "format": "prettier --write \"src/**/*.{ts,tsx,json,css,md}\"",
@@ -14,18 +18,19 @@
     "test": "vitest",
     "test:run": "vitest run",
     "test:coverage": "vitest run --coverage",
-    "generate-icons": "node generate-icons.js"
+    "generate-icons": "node generate-icons.js",
+    "electron": "electron .",
+    "electron:pack": "npm run build && electron-builder --dir",
+    "electron:dist": "npm run build && electron-builder"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.58.0",
     "@tanstack/react-query": "^5.90.2",
-    "hls.js": "^1.6.13",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "react-router-dom": "^7.9.2",
     "tailwindcss": "^3.4.17",
-    "torrent-search-api": "^2.1.4",
-    "webtorrent": "^2.8.4"
+    "torrent-search-api": "^2.1.4"
   },
   "devDependencies": {
     "@testing-library/jest-dom": "^6.6.4",
@@ -38,7 +43,9 @@
     "@typescript-eslint/parser": "^8.15.0",
     "@vitejs/plugin-react": "^4.7.0",
     "@vitest/ui": "^2.1.8",
-    "autoprefixer": "^10.4.21",
+    "concurrently": "^8.2.2",
+    "electron": "^31.3.1",
+    "electron-builder": "^26.0.0",
     "buffer": "^6.0.3",
     "crypto-browserify": "^3.12.1",
     "eslint": "^9.36.0",
@@ -61,5 +68,26 @@
     "vite": "^5.4.20",
     "vite-plugin-node-polyfills": "^0.24.0",
     "vitest": "^2.1.8"
+  },
+  "build": {
+    "appId": "com.watchify.app",
+    "productName": "Watchify",
+    "directories": {
+      "output": "dist-electron"
+    },
+    "files": [
+      "dist/**/*",
+      "electron/**/*",
+      "node_modules/**/*"
+    ],
+    "mac": {
+      "category": "public.app-category.entertainment"
+    },
+    "win": {
+      "target": "nsis"
+    },
+    "linux": {
+      "target": "AppImage"
+    }
   }
 }

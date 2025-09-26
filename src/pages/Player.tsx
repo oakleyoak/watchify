@@ -64,20 +64,42 @@ const Player = () => {
     fetchResumeTime();
   }, [magnet, decodedMagnet, magnetHash]);
 
+  const handleOpenInVLC = async () => {
+    if (window.electronAPI) {
+      // Desktop app: use Electron API
+      const result = await window.electronAPI.openInVLC(decodedMagnet);
+      if (result.success) {
+        console.log('Opened in VLC via', result.method);
+      } else {
+        alert('Failed to open in VLC. Please make sure VLC is installed.');
+      }
+    } else {
+      // Web fallback: open external link
+      window.open(decodedMagnet, '_blank');
+    }
+  };
+
   const handleCopyMagnet = async () => {
-    try {
-      await navigator.clipboard.writeText(decodedMagnet);
+    if (window.electronAPI) {
+      // Desktop app: use Electron clipboard
+      await window.electronAPI.copyToClipboard(decodedMagnet);
       alert('Magnet link copied to clipboard!');
-    } catch (err) {
-      console.error('Failed to copy magnet link:', err);
-      // Fallback: select the text
-      const textArea = document.createElement('textarea');
-      textArea.value = decodedMagnet;
-      document.body.appendChild(textArea);
-      textArea.select();
-      document.execCommand('copy');
-      document.body.removeChild(textArea);
-      alert('Magnet link copied to clipboard!');
+    } else {
+      // Web fallback: use browser clipboard
+      try {
+        await navigator.clipboard.writeText(decodedMagnet);
+        alert('Magnet link copied to clipboard!');
+      } catch (err) {
+        console.error('Failed to copy magnet link:', err);
+        // Fallback: select the text
+        const textArea = document.createElement('textarea');
+        textArea.value = decodedMagnet;
+        document.body.appendChild(textArea);
+        textArea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textArea);
+        alert('Magnet link copied to clipboard!');
+      }
     }
   };
 

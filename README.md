@@ -1,30 +1,29 @@
 # 🎬 Watchify
 
-A modern, professional torrent streaming platform built with React, TypeScript, and cutting-edge web technologies. Stream torrents directly in your browser with enterprise-grade video controls, comprehensive accessibility, and robust user management.
+A modern, professional torrent streaming desktop application built with React, TypeScript, Electron, and VLC. Stream torrents directly in VLC media player with enterprise-grade video controls, comprehensive accessibility, and robust user management.
 
-![Watchify](https://img.shields.io/badge/Watchify-Streaming_Platform-blue?style=for-the-badge&logo=video&logoColor=white)
+![Watchify](https://img.shields.io/badge/Watchify-Desktop_App-blue?style=for-the-badge&logo=video&logoColor=white)
 ![React](https://img.shields.io/badge/React-18.3.1-61DAFB?style=flat-square&logo=react)
 ![TypeScript](https://img.shields.io/badge/TypeScript-5.9.2-3178C6?style=flat-square&logo=typescript)
-![Vite](https://img.shields.io/badge/Vite-5.4.8-646CFF?style=flat-square&logo=vite)
-![PWA](https://img.shields.io/badge/PWA-Ready-5A0FC8?style=flat-square&logo=pwa)
-![Netlify](https://img.shields.io/badge/Netlify-Deployed-00C46A?style=flat-square&logo=netlify)
+![Electron](https://img.shields.io/badge/Electron-31.3.1-47848F?style=flat-square&logo=electron)
+![VLC](https://img.shields.io/badge/VLC-Integrated-FF7E00?style=flat-square&logo=vlcmediaplayer)
 
 ## ✨ Features
 
 ### 🎯 Core Functionality
 - 🔍 **Intelligent Search**: Search torrents via YTS and Pirate Bay with automatic fallback
-- 🎬 **Dual Streaming**: Stream torrents via WebTorrent OR watch YouTube videos directly
-- 🧲 **WebTorrent Integration**: Direct peer-to-peer streaming in the browser
+- 🎬 **VLC Integration**: Stream torrents directly in VLC media player for optimal performance
+- 🧲 **Torrent Streaming**: Direct peer-to-peer streaming with VLC playback
 - 👤 **Secure Authentication**: Supabase-powered user management with JWT tokens
 - 📚 **Smart History**: Automatic progress tracking with resume functionality
 - ❤️ **Favorites System**: Curated collection of saved content
-- 📱 **Progressive Web App**: Installable with offline capabilities
+- �️ **Desktop Application**: Native desktop experience with Electron
 
 ### 🎥 Professional Video Experience
-- **Advanced Controls**: Playback speed (0.25x-2x), picture-in-picture, custom volume
-- **Precise Seeking**: Click-to-seek with visual progress indicators
+- **VLC Controls**: Full VLC media player controls and features
+- **Advanced Playback**: Hardware acceleration, multiple audio tracks, subtitles
 - **Keyboard Shortcuts**: Full keyboard navigation (Space, arrows, F, M, P)
-- **Responsive Design**: Optimized for desktop, tablet, and mobile
+- **Responsive Design**: Optimized for desktop with native window controls
 - **Smooth Animations**: Framer Motion-powered transitions
 
 ### ♿ Accessibility Excellence
@@ -43,32 +42,28 @@ A modern, professional torrent streaming platform built with React, TypeScript, 
 
 ## 🛠️ Tech Stack
 
-### Frontend Framework
+### Desktop Framework
+- **Electron 31.3.1** - Cross-platform desktop app framework
 - **React 18.3.1** - Concurrent features and modern hooks
 - **TypeScript 5.9.2** - Type-safe development experience
 - **Vite 5.4.8** - Lightning-fast build tool and dev server
 - **Tailwind CSS 3.4.14** - Utility-first CSS with custom design system
 
-### State & Data Management
-- **TanStack React Query 5.90.2** - Powerful data synchronization
-- **Supabase** - Authentication, database, and real-time subscriptions
-- **React Router 6.26.1** - Declarative client-side routing
-
 ### Media & Streaming
-- **WebTorrent** - Client-side torrent streaming
+- **VLC Media Player** - Professional video playback with hardware acceleration
 - **Framer Motion 12.23.22** - Production-ready animations
-- **HTML5 Video API** - Native video controls with custom overlay
+- **Electron IPC** - Secure communication between main and renderer processes
 
-### Development & Quality
-- **ESLint** - Code linting and consistency
-- **PostCSS** - CSS processing and optimization
-- **Sharp** - PWA icon generation
-- **Vite Plugin Node Polyfills** - Node.js compatibility in browser
+### Backend & Data
+- **Supabase** - Authentication, database, and real-time subscriptions
+- **TanStack React Query 5.90.2** - Powerful data synchronization
+- **React Router 6.26.1** - Declarative client-side routing
 
 ## 🚀 Quick Start
 
 ### Prerequisites
 - **Node.js 18+** and npm
+- **VLC Media Player** installed on your system
 - **Supabase account** for backend services
 - **Git** for version control
 
@@ -122,23 +117,27 @@ A modern, professional torrent streaming platform built with React, TypeScript, 
    );
    ```
 
-5. **Generate PWA icons** (optional)
-   ```bash
-   npm run generate-icons
-   ```
-
-6. **Start development**
+5. **Start development**
    ```bash
    npm run dev
    ```
+
+   This will start both the Vite dev server and Electron app concurrently.
 
 ## 🎮 Usage Guide
 
 ### Basic Operation
 1. **Search**: Enter keywords in the search bar
 2. **Filter**: Use category and resolution filters
-3. **Stream**: Click "Watch" to start streaming
-4. **Controls**: Use video controls or keyboard shortcuts
+3. **Stream**: Click "Watch with VLC" to start streaming in VLC media player
+4. **Controls**: Use VLC's native controls for playback
+
+### VLC Integration
+- **Automatic Launch**: VLC opens automatically when you click "Watch with VLC"
+- **Hardware Acceleration**: VLC uses GPU acceleration for smooth playback
+- **Multiple Formats**: Support for all video formats and codecs
+- **Subtitles**: Automatic subtitle detection and loading
+- **Audio Tracks**: Multiple audio track selection
 
 ### Keyboard Shortcuts
 - **Space** - Play/Pause toggle
@@ -152,15 +151,15 @@ A modern, professional torrent streaming platform built with React, TypeScript, 
 - **Sign Up/Login**: Create account to access personal features
 - **History**: Automatic progress tracking across sessions
 - **Favorites**: Save content for quick access
-- **PWA**: Install as native app for enhanced experience
+- **VLC Integration**: Professional video playback with hardware acceleration
 
-## 📱 Progressive Web App
+## �️ Desktop Application
 
-Watchify is a fully-featured PWA with:
-- **Offline Access**: Core functionality works without internet
-- **Native Installation**: Add to home screen on any device
-- **Background Sync**: Actions sync when connection restored
-- **App-like Experience**: Standalone operation with native feel
+Watchify runs as a native desktop application with:
+- **VLC Integration**: Direct integration with VLC media player
+- **Cross-Platform**: Windows, macOS, and Linux support
+- **Native Performance**: Hardware-accelerated video playback
+- **System Integration**: Native window management and system tray
 
 ## ♿ Accessibility
 
@@ -171,30 +170,47 @@ Built with accessibility as a core principle:
 - **High Contrast**: Automatic system preference detection
 - **Reduced Motion**: Respects user motion preferences
 
-## 🚀 Deployment
+## 🚀 Building & Distribution
 
-### Netlify (Recommended)
-1. **Connect Repository**: Link your GitHub repo to Netlify
-2. **Build Settings**:
-   - Build command: `npm run build`
-   - Publish directory: `dist`
-   - Functions directory: `netlify/functions`
-3. **Environment Variables**:
-   - `VITE_SUPABASE_URL`
-   - `VITE_SUPABASE_ANON_KEY`
-
-### Manual Deployment
+### Development
 ```bash
-npm run build
-# Deploy the 'dist' folder to your hosting provider
+# Start development environment (Vite + Electron)
+npm run dev
+
+# Start Vite dev server only
+npm run dev:vite
+
+# Start Electron app only
+npm run dev:electron
 ```
+
+### Building for Distribution
+```bash
+# Build and package for current platform
+npm run build:electron
+
+# Build only (no packaging)
+npm run build
+
+# Package for distribution (creates installers)
+npm run electron:dist
+
+# Package without installer (just the app)
+npm run electron:pack
+```
+
+### Distribution Files
+The build process creates:
+- **Windows**: `.exe` installer and portable version
+- **macOS**: `.dmg` and `.pkg` installers
+- **Linux**: `.AppImage` and `.deb` packages
 
 ### Production Configuration
 Update your Supabase project settings for production:
 ```toml
 [auth]
-site_url = "https://your-netlify-site.netlify.app"
-additional_redirect_urls = ["https://your-netlify-site.netlify.app"]
+site_url = "https://your-domain.com"
+additional_redirect_urls = ["https://your-domain.com"]
 ```
 
 ## 📊 Performance & Quality
