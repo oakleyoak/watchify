@@ -9,7 +9,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch, onStreamSelect }) => {
   const [query, setQuery] = useState<string>('');
   const [category, setCategory] = useState<string>('all');
   const [resolution, setResolution] = useState<string>('all');
-  const [streamingMode, setStreamingMode] = useState<'youtube' | 'torrent'>('youtube');
+  const [streamingMode, setStreamingMode] = useState<'youtube' | 'torrent'>('torrent');
   const [isSearching, setIsSearching] = useState(false);
   const [searchResults, setSearchResults] = useState<any[]>([]);
 

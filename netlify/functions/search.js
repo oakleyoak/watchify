@@ -43,83 +43,40 @@ exports.handler = async (event, context) => {
       };
     }
 
-    // Enable only one provider at a time to test
-    TorrentSearchApi.enableProvider('1337x');
+    console.log('Search request received for query:', query);
 
-    // Create search queries including Turkish variations
-    const searchQueries = [query];
-
-    // Add Turkish language variations for better Turkish content discovery
-    if (!query.toLowerCase().includes('turk') && !query.toLowerCase().includes('türk')) {
-      searchQueries.push(`${query} turk`);
-      searchQueries.push(`${query} türk`);
-      searchQueries.push(`${query} türkçe`);
-      searchQueries.push(`${query} altyazı`);
-    }
-
-    // Search torrents from all queries
-    const allTorrents = [];
-    for (const searchQuery of searchQueries) {
-      try {
-        console.log(`Searching for query: "${searchQuery}"`);
-        const torrents = await TorrentSearchApi.search(searchQuery, category === 'all' ? undefined : category, parseInt(limit));
-        console.log(`Found ${torrents.length} torrents for query: "${searchQuery}"`);
-        allTorrents.push(...torrents);
-      } catch (error) {
-        console.error(`Search failed for query "${searchQuery}":`, error.message);
-        console.error('Full error:', error);
+    // For now, return mock data to test if the function works
+    const mockResults = [
+      {
+        title: `${query} - Test Movie 1`,
+        size: '1.2 GB',
+        seeders: 150,
+        magnet: 'magnet:?xt=urn:btih:mockhash1',
+        poster_url: ''
+      },
+      {
+        title: `${query} - Test Movie 2`,
+        size: '800 MB',
+        seeders: 89,
+        magnet: 'magnet:?xt=urn:btih:mockhash2',
+        poster_url: ''
       }
-    }
-
-    // Remove duplicates based on magnet link
-    const uniqueTorrents = allTorrents.filter((torrent, index, self) =>
-      index === self.findIndex(t => t.magnet === torrent.magnet)
-    );
-
-    // Sort by seeders (highest first), then prioritize Turkish content
-    const sortedTorrents = uniqueTorrents.sort((a, b) => {
-      // First sort by seeders
-      const seedDiff = (b.seeds || 0) - (a.seeds || 0);
-      if (seedDiff !== 0) return seedDiff;
-
-      // Then prioritize Turkish content
-      const aTitle = (a.title || '').toLowerCase();
-      const bTitle = (b.title || '').toLowerCase();
-      const aIsTurkish = aTitle.includes('turk') || aTitle.includes('türk') || aTitle.includes('altyazı');
-      const bIsTurkish = bTitle.includes('turk') || bTitle.includes('türk') || bTitle.includes('altyazı');
-
-      if (aIsTurkish && !bIsTurkish) return -1;
-      if (!aIsTurkish && bIsTurkish) return 1;
-      return 0;
-    });
-
-    // Map results to our format
-    const mappedTorrents = sortedTorrents.map(torrent => ({
-      title: torrent.title || 'Unknown Title',
-      size: torrent.size || 'Unknown',
-      seeders: torrent.seeds || 0,
-      magnet: torrent.magnet || '',
-      poster_url: torrent.desc || ''
-    }));
+    ];
 
     return {
       statusCode: 200,
       headers,
-      body: JSON.stringify({ results: mappedTorrents })
+      body: JSON.stringify({ results: mockResults })
     };
 
   } catch (error) {
     console.error('Search error:', error);
-    console.error('Error stack:', error.stack);
-    console.error('Error message:', error.message);
     return {
       statusCode: 500,
       headers,
       body: JSON.stringify({
         error: 'Search failed',
-        details: error.message,
-        stack: error.stack,
-        providers: TorrentSearchApi.getActiveProviders()
+        details: error.message
       })
     };
   }
