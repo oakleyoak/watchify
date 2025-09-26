@@ -8,11 +8,12 @@
   to = "/.netlify/functions/:splat"
   status = 200
 
-# Asset files - serve directly
+# Asset files - serve directly (must come before SPA fallback)
 [[redirects]]
   from = "/assets/*"
   to = "/assets/:splat"
   status = 200
+  force = true
 
 # SPA fallback - catch all other routes
 [[redirects]]

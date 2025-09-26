@@ -64,11 +64,6 @@ const Player = () => {
     fetchResumeTime();
   }, [magnet, decodedMagnet, magnetHash]);
 
-  const handleOpenInVLC = () => {
-    // Try to open in VLC using magnet protocol
-    window.open(decodedMagnet, '_blank');
-  };
-
   const handleCopyMagnet = async () => {
     try {
       await navigator.clipboard.writeText(decodedMagnet);
@@ -117,12 +112,14 @@ const Player = () => {
                 Open this torrent in VLC or your preferred media player:
               </p>
               <div className="flex flex-wrap gap-2">
-                <button
-                  onClick={handleOpenInVLC}
-                  className="px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600"
+                <a
+                  href={decodedMagnet}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600 inline-block"
                 >
                   Open in VLC
-                </button>
+                </a>
                 <button
                   onClick={handleCopyMagnet}
                   className="px-4 py-2 bg-purple-500 text-white rounded hover:bg-purple-600"
@@ -136,9 +133,9 @@ const Player = () => {
               <div className="text-xs text-gray-500 dark:text-gray-500">
                 <p><strong>Instructions:</strong></p>
                 <ul className="list-disc list-inside">
-                  <li>Make sure VLC is installed on your system</li>
-                  <li>VLC should automatically handle magnet links</li>
-                  <li>If not, copy the magnet link and paste it in VLC (Media → Open Network Stream)</li>
+                  <li>Click "Open in VLC" to open the magnet link in your browser</li>
+                  <li>If VLC doesn't open automatically, copy the magnet link and paste it in VLC (Media → Open Network Stream)</li>
+                  <li>Make sure VLC is installed and associated with magnet links</li>
                 </ul>
               </div>
             </div>
