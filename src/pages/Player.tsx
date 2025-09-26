@@ -1,5 +1,5 @@
 import { useParams } from 'react-router-dom';
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import VideoPlayer from '../components/VideoPlayer';
 import { supabase } from '../supabase';
 

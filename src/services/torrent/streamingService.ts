@@ -4,11 +4,11 @@
 
 import { WebTorrentClient, TorrentFile } from './webTorrentClient';
 import { MagnetParser, MagnetInfo } from './magnetParser';
-import { FileSelector, FileSelectionResult } from './fileSelector';
+import { FileSelector } from './fileSelector';
 import { PriorityBuffer } from './priorityBuffer';
 import { HLSStreamingService } from './hlsStreamingService';
-import { logger, logStreamingEvent, logError } from '../../utils/logger';
-import { StreamingError, NetworkError, createErrorHandler } from '../../utils/errorHandler';
+import { logStreamingEvent, logError } from '../../utils/logger';
+import { StreamingError, createErrorHandler } from '../../utils/errorHandler';
 
 export interface StreamMagnetOptions {
   autoplay?: boolean;

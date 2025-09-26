@@ -75,7 +75,7 @@ export class PriorityBuffer {
   /**
    * Update buffer based on current playback position
    */
-  updateBuffer(currentTime: number, playbackRate: number = 1): void {
+  updateBuffer(currentTime: number, _playbackRate: number = 1): void {
     const currentPiece = this.timeToPiece(currentTime);
     const bufferAheadPieces = this.timeToPiece(this.options.bufferAhead);
 
@@ -130,7 +130,7 @@ export class PriorityBuffer {
   /**
    * Check if segment can be requested
    */
-  canRequestSegment(start: number, end: number): boolean {
+  canRequestSegment(start: number, _end: number): boolean {
     const segment = this.findSegment(start);
     if (!segment) return false;
 
@@ -213,25 +213,25 @@ export class PriorityBuffer {
       case 'linear':
         return {
           name: 'linear',
-          getNextSegment: (segments, currentTime, bufferAhead) => {
+          getNextSegment: (_segments, _currentTime, _bufferAhead) => {
             // Download segments in order
-            return segments.find(s => !s.downloaded && !s.requested) || null;
+            return _segments.find(s => !s.downloaded && !s.requested) || null;
           }
         };
 
       case 'priority':
         return {
           name: 'priority',
-          getNextSegment: (segments, currentTime, bufferAhead) => {
+          getNextSegment: (_segments, _currentTime, _bufferAhead) => {
             // Download highest priority segments first
-            return segments.find(s => !s.downloaded && !s.requested) || null;
+            return _segments.find(s => !s.downloaded && !s.requested) || null;
           }
         };
 
       case 'adaptive':
         return {
           name: 'adaptive',
-          getNextSegment: (segments, currentTime, bufferAhead) => {
+          getNextSegment: (segments, currentTime, _bufferAhead) => {
             // Adaptive strategy based on buffer health
             const bufferHealth = this.getBufferHealth(currentTime);
 

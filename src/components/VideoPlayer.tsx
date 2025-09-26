@@ -16,14 +16,12 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ magnet, magnetHash, resumeTim
   // UI State
   const [status, setStatus] = useState<StreamStatus>({ state: 'idle', progress: 0, downloadSpeed: 0, peers: 0, bufferHealth: 0 });
   const [error, setError] = useState<string | null>(null);
-  const [isFullscreen, setIsFullscreen] = useState(false);
   const [showControls, setShowControls] = useState(true);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
   const [volume, setVolume] = useState(1);
   const [isMuted, setIsMuted] = useState(false);
   const [playbackSpeed, setPlaybackSpeed] = useState(1);
-  const [isPiP, setIsPiP] = useState(false);
 
   const controlsTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -98,10 +96,8 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ magnet, magnetHash, resumeTim
   const toggleFullscreen = useCallback(() => {
     if (!document.fullscreenElement) {
       videoRef.current?.requestFullscreen();
-      setIsFullscreen(true);
     } else {
       document.exitFullscreen();
-      setIsFullscreen(false);
     }
   }, []);
 
@@ -109,10 +105,8 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ magnet, magnetHash, resumeTim
     try {
       if (document.pictureInPictureElement) {
         await document.exitPictureInPicture();
-        setIsPiP(false);
       } else if (videoRef.current) {
         await videoRef.current.requestPictureInPicture();
-        setIsPiP(true);
       }
     } catch (err) {
       logger.warn('VideoPlayer', 'PiP failed', err);
@@ -223,16 +217,6 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ magnet, magnetHash, resumeTim
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
   }, [handleKeyDown]);
-
-  // Fullscreen change listener
-  useEffect(() => {
-    const handleFullscreenChange = () => {
-      setIsFullscreen(!!document.fullscreenElement);
-    };
-
-    document.addEventListener('fullscreenchange', handleFullscreenChange);
-    return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
-  }, []);
 
   // Progress saving
   const saveProgress = useCallback(async () => {

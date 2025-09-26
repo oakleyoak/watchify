@@ -4,7 +4,7 @@
 
 import WebTorrent from 'webtorrent';
 import { logger, logTorrentProgress, logError } from '../../utils/logger';
-import { TorrentError, NetworkError, retryWithBackoff } from '../../utils/errorHandler';
+import { TorrentError, retryWithBackoff } from '../../utils/errorHandler';
 import { MagnetInfo } from './magnetParser';
 
 export interface TorrentFile {

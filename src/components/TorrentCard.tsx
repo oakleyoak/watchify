@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { supabase } from '../supabase';
 
-const TorrentCard = ({ torrent, onDelete, showDelete = false }) => {
+const TorrentCard = ({ torrent, onDelete, showDelete = false }) => { // eslint-disable-line @typescript-eslint/no-unused-vars
   const [error, setError] = useState('');
 
   // Simple hash function for magnet URLs

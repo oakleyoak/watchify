@@ -24,7 +24,6 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch, onStreamSelect }) => {
       if (streamingMode === 'youtube') {
         // For demo purposes, we'll use a simple YouTube search approach
         // In production, you'd want to use the YouTube Data API with proper authentication
-        const searchQuery = encodeURIComponent(`${query} movie full`);
         const youtubeResults = [
           {
             id: 'dQw4w9WgXcQ', // Example video ID
