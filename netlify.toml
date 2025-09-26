@@ -8,10 +8,22 @@
   to = "/.netlify/functions/:splat"
   status = 200
 
+# Asset files - serve directly
+[[redirects]]
+  from = "/assets/*"
+  to = "/assets/:splat"
+  status = 200
+
+# SPA fallback - catch all other routes
 [[redirects]]
   from = "/*"
   to = "/index.html"
   status = 200
+
+[[headers]]
+  for = "/*.js"
+  [headers.values]
+    Content-Type = "application/javascript"
 
 [[headers]]
   for = "/*.mjs"
