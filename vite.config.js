@@ -41,18 +41,12 @@ export default defineConfig({
       },
       output: {
         // Ensure .mjs files are handled correctly
-        format: 'es',
-        inlineDynamicImports: true
+        format: 'es'
       }
     }
   },
   optimizeDeps: {
-    include: ['webtorrent', 'framer-motion', 'motion-dom'],
-    esbuildOptions: {
-      loader: {
-        '.mjs': 'js'
-      }
-    }
+    include: ['webtorrent']
   },
   // Add server config to handle .mjs files
   server: {
