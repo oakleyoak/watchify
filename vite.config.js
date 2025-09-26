@@ -33,11 +33,13 @@ export default defineConfig({
   build: {
     rollupOptions: {
       external: (id) => {
-        // Only externalize truly problematic Node.js modules
+        // Externalize Node.js specific modules
         return id.includes('utp-native') ||
                id.includes('dgram') ||
                id.includes('net') ||
-               id.includes('fs');
+               id.includes('fs') ||
+               // Try externalizing motion-dom to prevent .mjs loading
+               id.includes('motion-dom');
       },
       output: {
         // Ensure .mjs files are handled correctly
@@ -46,6 +48,14 @@ export default defineConfig({
     }
   },
   optimizeDeps: {
-    include: ['webtorrent', 'framer-motion', 'motion-dom']
+    include: ['webtorrent', 'framer-motion'],
+    exclude: ['motion-dom']
+  },
+  // Add server config to handle .mjs files
+  server: {
+    fs: {
+      // Allow serving files from node_modules for .mjs files
+      allow: ['.']
+    }
   }
 })
