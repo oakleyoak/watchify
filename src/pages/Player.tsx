@@ -17,6 +17,7 @@ const hashMagnet = (magnet: string): string => {
 const Player = () => {
   const { magnet } = useParams();
   const [resumeTime, setResumeTime] = useState(0);
+  const [useExternalPlayer, setUseExternalPlayer] = useState(false);
 
   const decodedMagnet = decodeURIComponent(magnet);
   const magnetHash = hashMagnet(decodedMagnet);
@@ -63,11 +64,95 @@ const Player = () => {
     fetchResumeTime();
   }, [magnet, decodedMagnet, magnetHash]);
 
-  console.log('Player: Rendering VideoPlayer with magnet:', decodedMagnet.substring(0, 50) + '...');
+  const handleOpenInVLC = () => {
+    // Try to open in VLC using magnet protocol
+    window.open(decodedMagnet, '_blank');
+  };
+
+  const handleCopyMagnet = async () => {
+    try {
+      await navigator.clipboard.writeText(decodedMagnet);
+      alert('Magnet link copied to clipboard!');
+    } catch (err) {
+      console.error('Failed to copy magnet link:', err);
+      // Fallback: select the text
+      const textArea = document.createElement('textarea');
+      textArea.value = decodedMagnet;
+      document.body.appendChild(textArea);
+      textArea.select();
+      document.execCommand('copy');
+      document.body.removeChild(textArea);
+      alert('Magnet link copied to clipboard!');
+    }
+  };
+
+  console.log('Player: Rendering with magnet:', decodedMagnet.substring(0, 50) + '...');
 
   return (
     <div className="container mx-auto p-4">
-      <VideoPlayer magnet={decodedMagnet} magnetHash={magnetHash} resumeTime={resumeTime} />
+      <div className="mb-4">
+        <h1 className="text-2xl font-bold mb-4">Video Player</h1>
+        
+        {/* Player Options */}
+        <div className="bg-gray-100 dark:bg-gray-800 p-4 rounded-lg mb-4">
+          <h2 className="text-lg font-semibold mb-2">Playback Options</h2>
+          <div className="flex flex-wrap gap-2 mb-4">
+            <button
+              onClick={() => setUseExternalPlayer(false)}
+              className={`px-4 py-2 rounded ${!useExternalPlayer ? 'bg-blue-500 text-white' : 'bg-gray-300 dark:bg-gray-600'}`}
+            >
+              In-Browser Player
+            </button>
+            <button
+              onClick={() => setUseExternalPlayer(true)}
+              className={`px-4 py-2 rounded ${useExternalPlayer ? 'bg-blue-500 text-white' : 'bg-gray-300 dark:bg-gray-600'}`}
+            >
+              External Player (VLC)
+            </button>
+          </div>
+
+          {useExternalPlayer ? (
+            <div className="space-y-2">
+              <p className="text-sm text-gray-600 dark:text-gray-400">
+                Open this torrent in VLC or your preferred media player:
+              </p>
+              <div className="flex flex-wrap gap-2">
+                <button
+                  onClick={handleOpenInVLC}
+                  className="px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600"
+                >
+                  Open in VLC
+                </button>
+                <button
+                  onClick={handleCopyMagnet}
+                  className="px-4 py-2 bg-purple-500 text-white rounded hover:bg-purple-600"
+                >
+                  Copy Magnet Link
+                </button>
+              </div>
+              <p className="text-xs text-gray-500 dark:text-gray-500 mt-2">
+                Magnet: {decodedMagnet.substring(0, 100)}...
+              </p>
+              <div className="text-xs text-gray-500 dark:text-gray-500">
+                <p><strong>Instructions:</strong></p>
+                <ul className="list-disc list-inside">
+                  <li>Make sure VLC is installed on your system</li>
+                  <li>VLC should automatically handle magnet links</li>
+                  <li>If not, copy the magnet link and paste it in VLC (Media → Open Network Stream)</li>
+                </ul>
+              </div>
+            </div>
+          ) : (
+            <p className="text-sm text-gray-600 dark:text-gray-400">
+              Playing video directly in your browser using WebTorrent.
+            </p>
+          )}
+        </div>
+      </div>
+
+      {!useExternalPlayer && (
+        <VideoPlayer magnet={decodedMagnet} magnetHash={magnetHash} resumeTime={resumeTime} />
+      )}
     </div>
   );
 };
