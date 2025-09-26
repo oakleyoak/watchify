@@ -309,6 +309,24 @@ The app is configured for deployment on Netlify:
    - `VITE_SUPABASE_URL`
    - `VITE_SUPABASE_ANON_KEY`
 
+### ⚠️ Important: Update Supabase Configuration for Production
+
+Before deploying, you must update the Supabase configuration to use your production Netlify URL:
+
+1. **Get your Netlify site URL** (e.g., `https://your-site-name.netlify.app`)
+2. **Update `supabase/config.toml`**:
+   ```toml
+   [auth]
+   site_url = "https://your-netlify-site.netlify.app"
+   additional_redirect_urls = ["https://your-netlify-site.netlify.app"]
+   ```
+3. **Deploy the updated configuration** to Supabase:
+   ```bash
+   supabase db push
+   ```
+
+This ensures that Supabase authentication redirects work correctly in production instead of using localhost URLs.
+
 ## Tech Stack
 
 - **Frontend**: React 18, Vite, Tailwind CSS
