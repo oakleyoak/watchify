@@ -261,14 +261,14 @@ const VideoPlayer = ({ magnet, magnetHash, resumeTime }) => {
     return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
   }, []);
 
-  // Effect to trigger streaming when video element becomes available
+  // Effect to trigger torrent streaming when video element becomes available
   useEffect(() => {
     if (!magnet || magnet.startsWith('youtube:') || !isVideoElementReady) {
       return;
     }
 
-    const initializeStreaming = async () => {
-      console.log('VideoPlayer: Video element ready, starting streaming initialization');
+    const initializeTorrentStreaming = async () => {
+      console.log('VideoPlayer: Video element ready, starting torrent streaming initialization');
 
       // First check if we already have this torrent stored locally
       try {
@@ -289,91 +289,187 @@ const VideoPlayer = ({ magnet, magnetHash, resumeTime }) => {
         console.warn('VideoPlayer: Error checking stored torrent:', err);
       }
 
-      // If not stored locally, start server-side streaming
-      startServerStreaming();
+      // Start client-side torrenting
+      startClientSideTorrenting();
     };
 
-    const startServerStreaming = async () => {
+    const startClientSideTorrenting = async () => {
       try {
         if (!videoRef.current) {
-          console.log('VideoPlayer: Video element not available during streaming setup');
+          console.log('VideoPlayer: Video element not available during torrent setup');
           return;
         }
 
         setLoading(true);
         setError(null);
-        console.log('VideoPlayer: Attempting server-side streaming...');
+        console.log('VideoPlayer: Starting client-side torrenting...');
 
-        // Use server-side streaming endpoint
-        const streamUrl = `/.netlify/functions/stream?magnet=${encodeURIComponent(magnet)}`;
-        console.log('VideoPlayer: Streaming URL:', streamUrl);
-
-        // Set the video source to the streaming endpoint
-        videoRef.current.src = streamUrl;
-        videoRef.current.load();
-
-        // Set up event listeners for streaming
-        const handleCanPlay = () => {
-          console.log('VideoPlayer: Video can play, starting playback');
-          setLoading(false);
-          if (resumeTime > 0 && videoRef.current) {
-            videoRef.current.currentTime = resumeTime;
+        // Initialize WebTorrent client
+        if (!client) {
+          const WebTorrent = (window as any).WebTorrent;
+          if (!WebTorrent) {
+            throw new Error('WebTorrent not available. Please refresh the page.');
           }
+
+          const newClient = new WebTorrent();
+          setClient(newClient);
+
+          // Set up client event listeners
+          newClient.on('error', (err) => {
+            console.error('WebTorrent client error:', err);
+            setError('Torrent client error: ' + err.message);
+            setLoading(false);
+          });
+
+          newClient.on('warning', (err) => {
+            console.warn('WebTorrent client warning:', err);
+          });
+        }
+
+        const activeClient = client || (window as any).WebTorrent ? new (window as any).WebTorrent() : null;
+        if (!activeClient) {
+          throw new Error('Failed to initialize WebTorrent client');
+        }
+
+        console.log('VideoPlayer: Adding torrent:', magnet.substring(0, 50) + '...');
+
+        // Add torrent with additional trackers for better peer discovery
+        const torrentOptions = {
+          announce: [
+            'wss://tracker.btorrent.xyz',
+            'wss://tracker.openwebtorrent.com',
+            'udp://tracker.coppersurfer.tk:6969/announce',
+            'udp://9.rarbg.to:2920/announce',
+            'udp://tracker.opentrackr.org:1337',
+            'udp://tracker.internetwarriors.net:1337/announce',
+            'udp://tracker.leechers-paradise.org:6969/announce',
+            'udp://tracker.pirateparty.gr:6969/announce',
+            'udp://tracker.cyberia.is:6969/announce'
+          ]
         };
 
-        const handleError = (e) => {
-          console.error('VideoPlayer: Video streaming error:', e);
-          setError('Failed to stream video from server. The torrent may not be available or the server is experiencing issues.');
-          setLoading(false);
-        };
+        activeClient.add(magnet, torrentOptions, (torrent) => {
+          console.log('VideoPlayer: Torrent added:', torrent.infoHash);
+          setTorrent(torrent);
 
-        const handleLoadStart = () => {
-          console.log('VideoPlayer: Started loading video stream');
-          setLoading(true);
-        };
+          // Update progress
+          const updateProgress = () => {
+            const progress = (torrent.downloaded / torrent.length) * 100;
+            setDownloadProgress(progress);
+            setDownloadSpeed(torrent.downloadSpeed);
+            setUploadSpeed(torrent.uploadSpeed);
+            setTotalSize(torrent.length);
+            setDownloadedSize(torrent.downloaded);
+          };
 
-        const handleProgress = () => {
-          // Update buffering progress
-          if (videoRef.current && videoRef.current.buffered.length > 0) {
-            const buffered = videoRef.current.buffered.end(0);
-            const duration = videoRef.current.duration;
-            if (duration > 0) {
-              setDownloadProgress((buffered / duration) * 100);
-            }
+          // Set up torrent event listeners
+          torrent.on('download', updateProgress);
+          torrent.on('upload', updateProgress);
+
+          torrent.on('done', () => {
+            console.log('VideoPlayer: Torrent download complete');
+            setIsDownloading(false);
+          });
+
+          torrent.on('error', (err) => {
+            console.error('VideoPlayer: Torrent error:', err);
+            setError('Torrent error: ' + err.message);
+            setLoading(false);
+          });
+
+          // Find the largest video file
+          const videoFiles = torrent.files.filter(file =>
+            file.name.match(/\.(mp4|mkv|avi|mov|wmv|flv|webm)$/i)
+          );
+
+          if (videoFiles.length === 0) {
+            setError('No video files found in this torrent. The torrent may not contain video content.');
+            setLoading(false);
+            return;
           }
-        };
 
-        videoRef.current.addEventListener('canplay', handleCanPlay);
-        videoRef.current.addEventListener('error', handleError);
-        videoRef.current.addEventListener('loadstart', handleLoadStart);
-        videoRef.current.addEventListener('progress', handleProgress);
+          // Sort by size and get the largest
+          videoFiles.sort((a, b) => b.length - a.length);
+          const videoFile = videoFiles[0];
 
-        // Store cleanup function for later
-        return () => {
-          if (videoRef.current) {
-            videoRef.current.removeEventListener('canplay', handleCanPlay);
-            videoRef.current.removeEventListener('error', handleError);
-            videoRef.current.removeEventListener('loadstart', handleLoadStart);
-            videoRef.current.removeEventListener('progress', handleProgress);
-          }
-        };
+          console.log('VideoPlayer: Streaming file:', videoFile.name, 'Size:', videoFile.length);
+          setFile(videoFile);
+
+          // Create a streaming URL for the video file
+          const fileStream = videoFile.createReadStream();
+          const chunks = [];
+
+          fileStream.on('data', (chunk) => {
+            chunks.push(chunk);
+          });
+
+          fileStream.on('end', () => {
+            console.log('VideoPlayer: File stream ended, creating blob URL');
+            const blob = new Blob(chunks, { type: 'video/mp4' });
+            const url = URL.createObjectURL(blob);
+
+            // Store the torrent for future use
+            torrentStorage.storeTorrent(magnetHash, blob, {
+              name: videoFile.name,
+              size: videoFile.length,
+              downloadedAt: new Date().toISOString()
+            });
+
+            // Set video source
+            videoRef.current.src = url;
+            videoRef.current.load();
+
+            // Set up video event listeners
+            const handleCanPlay = () => {
+              console.log('VideoPlayer: Video can play, starting playback');
+              setLoading(false);
+              if (resumeTime > 0) {
+                videoRef.current.currentTime = resumeTime;
+              }
+            };
+
+            const handleVideoError = (e) => {
+              console.error('VideoPlayer: Video playback error:', e);
+              setError('Video playback failed. The torrent file may be corrupted or incompatible.');
+              setLoading(false);
+            };
+
+            videoRef.current.addEventListener('canplay', handleCanPlay);
+            videoRef.current.addEventListener('error', handleVideoError);
+
+            // Clean up event listeners on unmount
+            return () => {
+              if (videoRef.current) {
+                videoRef.current.removeEventListener('canplay', handleCanPlay);
+                videoRef.current.removeEventListener('error', handleVideoError);
+              }
+            };
+          });
+
+          fileStream.on('error', (err) => {
+            console.error('VideoPlayer: File stream error:', err);
+            setError('Failed to stream video file: ' + err.message);
+            setLoading(false);
+          });
+
+        });
 
       } catch (err) {
-        console.error('VideoPlayer: Server streaming failed:', err);
-        setError(`Server streaming failed: ${err.message}.
+        console.error('VideoPlayer: Client-side torrenting failed:', err);
+        setError(`Torrent streaming failed: ${err.message}.
 
-Server-side streaming provides more reliable playback than browser-based torrenting, but requires:
+Client-side torrenting requires:
+• WebTorrent support in your browser
 • Active torrent with available peers
-• Server resources to handle the stream
-• Network connectivity to the streaming server
+• Network connectivity to torrent trackers
 
-If streaming fails, try downloading the torrent first using an external client.`);
+If torrenting fails, try using YouTube search instead.`);
         setLoading(false);
       }
     };
 
-    initializeStreaming();
-  }, [magnet, magnetHash, resumeTime, isVideoElementReady]); // Depend on isVideoElementReady
+    initializeTorrentStreaming();
+  }, [magnet, magnetHash, resumeTime, isVideoElementReady, client]);
 
   // Effect to set video element ready state
   useEffect(() => {
