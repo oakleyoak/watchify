@@ -18,50 +18,33 @@ const Home = () => {
       const { query, category, resolution } = searchParams;
 
       try {
-        // Use YTS public API for movie search
-        const params = new URLSearchParams({
-          query_term: query,
-          limit: '20',
-        });
-        const ytsResponse = await fetch(`https://yts.mx/api/v2/list_movies.json?${params}`);
-        let ytsResults = [];
-        if (ytsResponse.ok) {
-          const ytsData = await ytsResponse.json();
-          if (ytsData.data && ytsData.data.movies) {
-            ytsResults = ytsData.data.movies.map(movie => {
-              const bestTorrent = movie.torrents && movie.torrents.length > 0 ?
-                movie.torrents.reduce((a, b) => (b.seeds > a.seeds ? b : a), movie.torrents[0]) : null;
-              return {
-                title: movie.title_long,
-                size: bestTorrent ? bestTorrent.size : 'Unknown',
-                seeders: bestTorrent ? bestTorrent.seeds : 0,
-                magnet: bestTorrent ? `magnet:?xt=urn:btih:${bestTorrent.hash}&dn=${encodeURIComponent(movie.title_long)}&tr=udp://tracker.openbittorrent.com:80/announce` : '',
-                poster_url: movie.medium_cover_image || '',
-              };
-            });
-          }
+        // Use our proxy server for search (handles YTS + Pirate Bay fallback)
+        const proxyUrl = process.env.REACT_APP_PROXY_URL || 'https://your-proxy-url.com';
+        const response = await fetch(`${proxyUrl}/api/search?query=${encodeURIComponent(query)}&limit=20`);
+
+        if (!response.ok) {
+          throw new Error(`Proxy API failed: ${response.status}`);
         }
-        // If YTS found results or user is searching for a movie, return those
-        if (ytsResults.length > 0 || (category === 'movies' || !category || category === 'all')) {
-          return ytsResults.filter(torrent => !resolution || resolution === 'all' || torrent.title.toLowerCase().includes(resolution.toLowerCase()));
+
+        const data = await response.json();
+
+        if (data.error) {
+          throw new Error(data.error);
         }
-        // Otherwise, fallback to Pirate Bay proxy for TV shows and other content
-        const pbResponse = await fetch(`https://apibay.org/q.php?q=${encodeURIComponent(query)}`);
-        if (!pbResponse.ok) {
-          throw new Error(`Pirate Bay API failed: ${pbResponse.status}`);
-        }
-        const pbData = await pbResponse.json();
-        // Map Pirate Bay results
-        const pbTorrents = (Array.isArray(pbData) ? pbData : []).map(item => {
-          return {
-            title: item.name,
-            size: item.size || 'Unknown',
-            seeders: item.seeders || 0,
-            magnet: item.info_hash ? `magnet:?xt=urn:btih:${item.info_hash}&dn=${encodeURIComponent(item.name)}&tr=udp://tracker.openbittorrent.com:80/announce` : '',
-            poster_url: '',
-          };
-        });
-        return pbTorrents.filter(torrent => !resolution || resolution === 'all' || torrent.title.toLowerCase().includes(resolution.toLowerCase()));
+
+        // Map results to our expected format
+        const mappedTorrents = (data.results || []).map(torrent => ({
+          title: torrent.title || 'Unknown Title',
+          size: torrent.size || 'Unknown',
+          seeders: torrent.seeds || torrent.seeders || 0,
+          magnet: torrent.magnet || '',
+          poster_url: torrent.poster_url || ''
+        }));
+
+        // Filter by resolution if specified
+        return mappedTorrents.filter(torrent =>
+          !resolution || resolution === 'all' || torrent.title.toLowerCase().includes(resolution.toLowerCase())
+        );
       } catch (error) {
         console.error('Search API Error:', error);
         throw new Error('Unable to search torrents. The search service may be temporarily unavailable.');
