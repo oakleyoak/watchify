@@ -42,9 +42,9 @@ const Player = () => {
             .select('progress_seconds')
             .eq('user_id', user.id)
             .eq('torrent_id', magnetHash)
-            .single();
+            .maybeSingle();
           
-          if (error && error.code !== 'PGRST116') { // PGRST116 is "not found" which is expected
+          if (error) {
             console.error('Player: Supabase error:', error);
           } else if (data) {
             console.log('Player: Found resume time:', data.progress_seconds);
