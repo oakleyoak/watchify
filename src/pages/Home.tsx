@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import TorrentSearchApi from 'torrent-search-api';
 import SearchBar from '../components/SearchBar';
 import ContinueWatching from '../components/ContinueWatching';
 import TorrentCard from '../components/TorrentCard';
@@ -8,11 +7,6 @@ import TorrentCard from '../components/TorrentCard';
 const Home = () => {
   const [searchParams, setSearchParams] = useState(null);
   const [error, setError] = useState('');
-
-  // Initialize Torrent Search API with public providers
-  useEffect(() => {
-    TorrentSearchApi.enablePublicProviders();
-  }, []);
 
   const { data: results = [], isLoading: loading, error: queryError } = useQuery({
     queryKey: ['torrents', searchParams],
@@ -22,25 +16,46 @@ const Home = () => {
       const { query, category, resolution, minSeeders } = searchParams;
 
       try {
-        // Use Torrent-Search-API for comprehensive search
-        const torrents = await TorrentSearchApi.search(query, category === 'all' ? undefined : category, 50);
+        // Call Netlify Function for torrent search
+        const params = new URLSearchParams({
+          query,
+          category,
+          limit: '50'
+        });
 
-        // Map and filter results to match our format
-        const mappedTorrents = torrents
-          .filter(torrent => !minSeeders || (torrent.seeds || 0) >= minSeeders)
+        const response = await fetch(`/.netlify/functions/search?${params}`, {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+          }
+        });
+
+        if (!response.ok) {
+          throw new Error(`Search failed: ${response.status}`);
+        }
+
+        const data = await response.json();
+
+        if (data.error) {
+          throw new Error(data.error);
+        }
+
+        // Filter and map results
+        const mappedTorrents = (data.results || [])
+          .filter(torrent => !minSeeders || (torrent.seeders || 0) >= minSeeders)
           .filter(torrent => !resolution || resolution === 'all' || torrent.title.toLowerCase().includes(resolution.toLowerCase()))
           .map(torrent => ({
             title: torrent.title || 'Unknown Title',
             size: torrent.size || 'Unknown',
-            seeders: torrent.seeds || 0,
+            seeders: torrent.seeders || 0,
             magnet: torrent.magnet || '',
-            poster_url: torrent.desc || '' // Some providers might have poster URLs
+            poster_url: torrent.poster_url || ''
           }))
           .slice(0, 20); // Limit to 20 results
 
         return mappedTorrents;
       } catch (error) {
-        console.error('Torrent Search API Error:', error);
+        console.error('Search API Error:', error);
         throw new Error('Unable to search torrents. The search service may be temporarily unavailable.');
       }
     },

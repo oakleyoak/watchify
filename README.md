@@ -327,14 +327,21 @@ Before deploying, you must update the Supabase configuration to use your product
 
 This ensures that Supabase authentication redirects work correctly in production instead of using localhost URLs.
 
+### 🔧 Netlify Functions
+
+The app uses Netlify Functions to run Torrent-Search-API server-side:
+- **Function**: `netlify/functions/search.js`
+- **Purpose**: Provides browser-compatible torrent search using Torrent-Search-API
+- **CORS**: Properly configured for cross-origin requests
+
 ## Tech Stack
 
 - **Frontend**: React 18, Vite, Tailwind CSS
-- **Backend**: Supabase (Auth + Database)
-- **Torrent Search**: [Torrent-Search-API](https://github.com/JimmyLaurent/torrent-search-api) (Multi-provider aggregator)
+- **Backend**: Supabase (Auth + Database) + Netlify Functions
+- **Torrent Search**: [Torrent-Search-API](https://github.com/JimmyLaurent/torrent-search-api) via Netlify Functions
 - **Streaming**: WebTorrent (loaded from CDN)
 - **API**: Torrent-Search-API aggregates from 15+ providers (1337x, ThePirateBay, Rarbg, YTS, etc.)
-- **Deployment**: Netlify
+- **Deployment**: Netlify (with serverless functions)
 ```
 
 5. Run `npm run dev` to start the development server.
