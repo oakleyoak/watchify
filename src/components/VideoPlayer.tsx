@@ -105,6 +105,7 @@ const VideoPlayer = ({ magnet, magnetHash, resumeTime }) => {
   const [totalSize, setTotalSize] = useState(0);
   const [downloadedSize, setDownloadedSize] = useState(0);
   const controlsTimeoutRef = useRef(null);
+  const [isVideoElementReady, setIsVideoElementReady] = useState(false);
 
   // Validate magnet URL
   useEffect(() => {
@@ -260,28 +261,19 @@ const VideoPlayer = ({ magnet, magnetHash, resumeTime }) => {
     return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
   }, []);
 
+  // Effect to trigger streaming when video element becomes available
   useEffect(() => {
-    if (!magnet) {
-      console.log('VideoPlayer: Missing magnet');
+    if (!magnet || magnet.startsWith('youtube:') || !isVideoElementReady) {
       return;
     }
 
-    // Check if this is a YouTube video
-    if (magnet.startsWith('youtube:')) {
-      const videoId = magnet.replace('youtube:', '');
-      console.log('VideoPlayer: Detected YouTube video:', videoId);
-      setLoading(false);
-      setError(null);
-      return;
-    }
+    const initializeStreaming = async () => {
+      console.log('VideoPlayer: Video element ready, starting streaming initialization');
 
-    console.log('VideoPlayer: Starting server-side streaming with magnet:', magnet.substring(0, 50) + '...');
-
-    // First check if we already have this torrent stored locally
-    const checkStoredTorrent = async () => {
+      // First check if we already have this torrent stored locally
       try {
         const storedTorrent = await torrentStorage.getTorrent(magnetHash);
-        if (storedTorrent) {
+        if (storedTorrent && videoRef.current) {
           console.log('VideoPlayer: Found stored torrent, playing from local storage');
           const url = URL.createObjectURL(storedTorrent.blob);
           videoRef.current.src = url;
@@ -303,6 +295,11 @@ const VideoPlayer = ({ magnet, magnetHash, resumeTime }) => {
 
     const startServerStreaming = async () => {
       try {
+        if (!videoRef.current) {
+          console.log('VideoPlayer: Video element not available during streaming setup');
+          return;
+        }
+
         setLoading(true);
         setError(null);
         console.log('VideoPlayer: Attempting server-side streaming...');
@@ -319,7 +316,7 @@ const VideoPlayer = ({ magnet, magnetHash, resumeTime }) => {
         const handleCanPlay = () => {
           console.log('VideoPlayer: Video can play, starting playback');
           setLoading(false);
-          if (resumeTime > 0) {
+          if (resumeTime > 0 && videoRef.current) {
             videoRef.current.currentTime = resumeTime;
           }
         };
@@ -351,7 +348,7 @@ const VideoPlayer = ({ magnet, magnetHash, resumeTime }) => {
         videoRef.current.addEventListener('loadstart', handleLoadStart);
         videoRef.current.addEventListener('progress', handleProgress);
 
-        // Clean up event listeners on unmount
+        // Store cleanup function for later
         return () => {
           if (videoRef.current) {
             videoRef.current.removeEventListener('canplay', handleCanPlay);
@@ -375,8 +372,17 @@ If streaming fails, try downloading the torrent first using an external client.`
       }
     };
 
-    checkStoredTorrent();
-  }, [magnet, magnetHash, resumeTime]);  const saveProgress = useCallback(async () => {
+    initializeStreaming();
+  }, [magnet, magnetHash, resumeTime, isVideoElementReady]); // Depend on isVideoElementReady
+
+  // Effect to set video element ready state
+  useEffect(() => {
+    if (videoRef.current && magnet && !magnet.startsWith('youtube:') && !error) {
+      setIsVideoElementReady(true);
+    } else {
+      setIsVideoElementReady(false);
+    }
+  }, [magnet, error]);  const saveProgress = useCallback(async () => {
     const { data: { user } } = await supabase.auth.getUser();
     if (user && videoRef.current && magnet) {
       await supabase
