@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { supabase } from '../supabase';
+import Hls from 'hls.js';
 
 // Extend window interface for WebTorrent
 declare global {
@@ -85,6 +86,7 @@ const VideoPlayer = ({ magnet, magnetHash, resumeTime }) => {
   const videoRef = useRef(null);
   const [client, setClient] = useState(null);
   const [torrent, setTorrent] = useState(null);
+  const [hlsInstance, setHlsInstance] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [file, setFile] = useState(null);
@@ -107,6 +109,7 @@ const VideoPlayer = ({ magnet, magnetHash, resumeTime }) => {
   const controlsTimeoutRef = useRef(null);
   const [isVideoElementReady, setIsVideoElementReady] = useState(false);
   const [webTorrentAvailable, setWebTorrentAvailable] = useState(false);
+  const [priorityBufferingCleanup, setPriorityBufferingCleanup] = useState<(() => void) | null>(null);
 
   // Validate magnet URL
   useEffect(() => {
@@ -128,6 +131,9 @@ const VideoPlayer = ({ magnet, magnetHash, resumeTime }) => {
   // Check WebTorrent availability
   useEffect(() => {
     const checkWebTorrent = () => {
+      console.log('VideoPlayer: Checking WebTorrent availability...');
+      console.log('VideoPlayer: window.WebTorrent:', (window as any).WebTorrent);
+
       if (typeof window !== 'undefined' && (window as any).WebTorrent) {
         console.log('VideoPlayer: WebTorrent is available');
         setWebTorrentAvailable(true);
@@ -289,8 +295,8 @@ const VideoPlayer = ({ magnet, magnetHash, resumeTime }) => {
       return;
     }
 
-    const initializeTorrentStreaming = async () => {
-      console.log('VideoPlayer: Video element ready, starting torrent streaming initialization');
+    const initializeStreaming = async () => {
+      console.log('VideoPlayer: Video element ready, starting streaming initialization');
 
       // First check if we already have this torrent stored locally
       try {
@@ -311,8 +317,14 @@ const VideoPlayer = ({ magnet, magnetHash, resumeTime }) => {
         console.warn('VideoPlayer: Error checking stored torrent:', err);
       }
 
-      // Start client-side torrenting
-      startClientSideTorrenting();
+      // Try HLS streaming first (more reliable)
+      try {
+        await startHLSStreaming();
+      } catch (hlsError) {
+        console.warn('VideoPlayer: HLS streaming failed, falling back to WebTorrent:', hlsError);
+        // Fallback to WebTorrent
+        await startWebTorrentStreaming();
+      }
     };
 
     const startClientSideTorrenting = async () => {
@@ -504,7 +516,329 @@ If torrenting fails, try using YouTube search instead.`);
       }
     };
 
-    initializeTorrentStreaming();
+    const startHLSStreaming = async () => {
+      console.log('VideoPlayer: Starting HLS streaming...');
+
+      // Clean up any existing priority buffering
+      if (priorityBufferingCleanup) {
+        priorityBufferingCleanup();
+        setPriorityBufferingCleanup(null);
+      }
+
+      if (!videoRef.current) {
+        throw new Error('Video element not available');
+      }
+
+      // Check if HLS.js is supported
+      if (!Hls.isSupported()) {
+        throw new Error('HLS is not supported in this browser');
+      }
+
+      setLoading(true);
+      setError(null);
+
+      try {
+        // Get HLS stream URL from our backend
+        const response = await fetch(`/.netlify/functions/hls?magnet=${encodeURIComponent(magnet)}`);
+        if (!response.ok) {
+          throw new Error(`Failed to get HLS stream: ${response.status}`);
+        }
+
+        const data = await response.json();
+        const hlsUrl = data.streamUrl;
+
+        console.log('VideoPlayer: HLS URL:', hlsUrl);
+
+        // Create HLS instance
+        const hls = new Hls({
+          enableWorker: true,
+          lowLatencyMode: true,
+          backBufferLength: 90
+        });
+
+        // Attach HLS to video element
+        hls.loadSource(hlsUrl);
+        hls.attachMedia(videoRef.current);
+
+        // Set up HLS event listeners
+        hls.on(Hls.Events.MANIFEST_PARSED, () => {
+          console.log('VideoPlayer: HLS manifest parsed');
+          setLoading(false);
+
+          // Resume from saved position
+          if (resumeTime > 0) {
+            videoRef.current!.currentTime = resumeTime;
+          }
+
+          // Auto-play if possible
+          videoRef.current!.play().catch(err => {
+            console.log('VideoPlayer: Auto-play failed:', err);
+          });
+        });
+
+        hls.on(Hls.Events.ERROR, (event, data) => {
+          console.error('VideoPlayer: HLS error:', data);
+          if (data.fatal) {
+            switch (data.type) {
+              case Hls.ErrorTypes.NETWORK_ERROR:
+                setError('Network error while streaming. Please check your connection.');
+                break;
+              case Hls.ErrorTypes.MEDIA_ERROR:
+                setError('Media error. The video file may be corrupted.');
+                break;
+              default:
+                setError('Streaming error occurred. Please try again.');
+                break;
+            }
+            setLoading(false);
+          }
+        });
+
+        // Store HLS instance for cleanup
+        setHlsInstance(hls);
+
+      } catch (err) {
+        console.error('VideoPlayer: HLS streaming failed:', err);
+        throw err;
+      }
+    };
+
+    const startWebTorrentStreaming = async () => {
+      console.log('VideoPlayer: Starting WebTorrent streaming...');
+
+      // Clean up any existing priority buffering
+      if (priorityBufferingCleanup) {
+        priorityBufferingCleanup();
+        setPriorityBufferingCleanup(null);
+      }
+
+      if (!videoRef.current) {
+        throw new Error('Video element not available');
+      }
+
+      setLoading(true);
+      setError(null);
+
+      try {
+        // Check WebTorrent availability
+        const WebTorrent = (window as any).WebTorrent;
+        if (!WebTorrent) {
+          throw new Error('WebTorrent not available. Please refresh the page.');
+        }
+
+        // Initialize WebTorrent client
+        const newClient = new WebTorrent();
+        setClient(newClient);
+
+        // Set up client event listeners
+        newClient.on('error', (err) => {
+          console.error('WebTorrent client error:', err);
+          setError('Torrent client error: ' + err.message);
+          setLoading(false);
+        });
+
+        newClient.on('warning', (err) => {
+          console.warn('WebTorrent client warning:', err);
+        });
+
+        console.log('VideoPlayer: Adding torrent:', magnet.substring(0, 50) + '...');
+
+        // Add torrent with additional trackers
+        const torrentOptions = {
+          announce: [
+            'wss://tracker.btorrent.xyz',
+            'wss://tracker.openwebtorrent.com',
+            'udp://tracker.coppersurfer.tk:6969/announce',
+            'udp://9.rarbg.to:2920/announce',
+            'udp://tracker.opentrackr.org:1337',
+            'udp://tracker.internetwarriors.net:1337/announce',
+            'udp://tracker.leechers-paradise.org:6969/announce',
+            'udp://tracker.pirateparty.gr:6969/announce',
+            'udp://tracker.cyberia.is:6969/announce'
+          ]
+        };
+
+        newClient.add(magnet, torrentOptions, (torrent) => {
+          console.log('VideoPlayer: Torrent added:', torrent.infoHash);
+          setTorrent(torrent);
+
+          // Update progress
+          const updateProgress = () => {
+            const progress = (torrent.downloaded / torrent.length) * 100;
+            setDownloadProgress(progress);
+            setDownloadSpeed(torrent.downloadSpeed);
+            setUploadSpeed(torrent.uploadSpeed);
+            setTotalSize(torrent.length);
+            setDownloadedSize(torrent.downloaded);
+          };
+
+          torrent.on('download', updateProgress);
+          torrent.on('upload', updateProgress);
+
+          torrent.on('done', () => {
+            console.log('VideoPlayer: Torrent download complete');
+            setIsDownloading(false);
+          });
+
+          // Intelligent video file selection
+          const selectBestVideoFile = (files) => {
+            const videoFiles = files.filter(file =>
+              file.name.match(/\.(mp4|mkv|avi|mov|wmv|flv|webm|m4v)$/i) &&
+              !file.name.toLowerCase().includes('sample') &&
+              !file.name.toLowerCase().includes('trailer') &&
+              !file.name.toLowerCase().includes('preview')
+            );
+
+            if (videoFiles.length === 0) {
+              throw new Error('No suitable video files found in torrent');
+            }
+
+            // Score each file based on multiple criteria
+            const scoredFiles = videoFiles.map(file => {
+              const name = file.name.toLowerCase();
+              let score = 0;
+
+              // Quality scoring (higher resolution = higher score)
+              if (name.includes('2160p') || name.includes('4k')) score += 100;
+              else if (name.includes('1080p') || name.includes('fullhd')) score += 80;
+              else if (name.includes('720p') || name.includes('hd')) score += 60;
+              else if (name.includes('480p')) score += 40;
+              else if (name.includes('360p')) score += 20;
+
+              // Format preference (MP4 is most compatible)
+              if (name.endsWith('.mp4') || name.endsWith('.m4v')) score += 30;
+              else if (name.endsWith('.mkv')) score += 20;
+              else if (name.endsWith('.avi')) score += 10;
+
+              // Size bonus (prefer reasonable sizes, avoid tiny files)
+              const sizeGB = file.length / (1024 * 1024 * 1024);
+              if (sizeGB > 0.1 && sizeGB < 50) { // Between 100MB and 50GB
+                score += Math.min(sizeGB * 2, 20); // Up to 20 points for size
+              }
+
+              // Prefer files with "complete" or "full" in name
+              if (name.includes('complete') || name.includes('full')) score += 15;
+
+              return { file, score, name: file.name, size: file.length };
+            });
+
+            // Sort by score (highest first), then by size (largest first) as tiebreaker
+            scoredFiles.sort((a, b) => {
+              if (a.score !== b.score) return b.score - a.score;
+              return b.file.length - a.file.length;
+            });
+
+            const bestFile = scoredFiles[0];
+            console.log('VideoPlayer: File selection scores:', scoredFiles.map(f => ({
+              name: f.name,
+              score: f.score,
+              size: (f.size / (1024 * 1024 * 1024)).toFixed(2) + 'GB'
+            })));
+            console.log('VideoPlayer: Selected best video file:', bestFile.name, 'Score:', bestFile.score);
+
+            return bestFile.file;
+          };
+
+          const videoFile = selectBestVideoFile(torrent.files);
+
+          // Implement priority buffering for smoother playback
+          const implementPriorityBuffering = (file, torrent) => {
+            const fileStartPiece = file.offset / torrent.pieceLength | 0;
+            const fileEndPiece = (file.offset + file.length) / torrent.pieceLength | 0;
+
+            // Calculate pieces for initial buffering (first 10MB or 10% of file, whichever is smaller)
+            const initialBufferSize = Math.min(10 * 1024 * 1024, file.length * 0.1);
+            const initialBufferPieces = Math.ceil(initialBufferSize / torrent.pieceLength);
+
+            console.log('VideoPlayer: Priority buffering - File pieces:', fileStartPiece, 'to', fileEndPiece);
+            console.log('VideoPlayer: Initial buffer pieces:', initialBufferPieces);
+
+            // Prioritize the first pieces for immediate playback
+            for (let i = 0; i < Math.min(initialBufferPieces, fileEndPiece - fileStartPiece); i++) {
+              torrent.select(fileStartPiece + i, true); // High priority
+            }
+
+            // Set up dynamic priority adjustment based on playback position
+            let lastPrioritizedEnd = fileStartPiece + initialBufferPieces;
+
+            const adjustPriorities = () => {
+              if (!videoRef.current) return;
+
+              const currentTime = videoRef.current.currentTime;
+              const playbackRate = videoRef.current.playbackRate || 1;
+              const bufferAheadSeconds = 30; // Buffer 30 seconds ahead
+
+              // Estimate which piece we need next based on current playback position
+              const bytesNeeded = currentTime * 1000000 + (bufferAheadSeconds * playbackRate * 1000000); // Rough bitrate estimate
+              const pieceNeeded = fileStartPiece + Math.floor(bytesNeeded / torrent.pieceLength);
+
+              // Prioritize pieces around the current playback position
+              const priorityStart = Math.max(fileStartPiece, pieceNeeded - 5);
+              const priorityEnd = Math.min(fileEndPiece, pieceNeeded + 20); // Buffer ahead
+
+              // Deselect old priorities and select new ones
+              for (let i = fileStartPiece; i < lastPrioritizedEnd; i++) {
+                if (i < priorityStart || i > priorityEnd) {
+                  torrent.deselect(i, true);
+                }
+              }
+
+              for (let i = priorityStart; i <= priorityEnd; i++) {
+                torrent.select(i, true);
+              }
+
+              lastPrioritizedEnd = priorityEnd;
+            };
+
+            // Adjust priorities every 5 seconds during playback
+            const priorityInterval = setInterval(adjustPriorities, 5000);
+
+            // Clean up interval when component unmounts or torrent changes
+            return () => clearInterval(priorityInterval);
+          };
+
+          // Start priority buffering
+          const cleanupPriorityBuffering = implementPriorityBuffering(videoFile, torrent);
+          setPriorityBufferingCleanup(() => cleanupPriorityBuffering);
+
+          // Create a stream for the video file
+          const stream = videoFile.createReadStream();
+
+          // Convert stream to blob URL for video element
+          const chunks: Uint8Array[] = [];
+          stream.on('data', (chunk: Uint8Array) => {
+            chunks.push(chunk);
+          });
+
+          stream.on('end', () => {
+            const blob = new Blob(chunks as BlobPart[], { type: 'video/mp4' });
+            const url = URL.createObjectURL(blob);
+
+            if (videoRef.current) {
+              videoRef.current.src = url;
+              setLoading(false);
+
+              // Resume from saved position
+              if (resumeTime > 0) {
+                videoRef.current.currentTime = resumeTime;
+              }
+            }
+          });
+
+          stream.on('error', (err: Error) => {
+            console.error('VideoPlayer: File stream error:', err);
+            setError('Failed to stream video file: ' + err.message);
+            setLoading(false);
+          });
+        });
+
+      } catch (err) {
+        console.error('VideoPlayer: WebTorrent streaming failed:', err);
+        throw err;
+      }
+    };
+
+    initializeStreaming();
   }, [magnet, magnetHash, resumeTime, isVideoElementReady]);
 
   // Effect to set video element ready state
@@ -514,7 +848,28 @@ If torrenting fails, try using YouTube search instead.`);
     } else {
       setIsVideoElementReady(false);
     }
-  }, [magnet, error]);  const saveProgress = useCallback(async () => {
+  }, [magnet, error]);  
+
+  // Cleanup HLS and WebTorrent instances on unmount
+  useEffect(() => {
+    return () => {
+      if (hlsInstance) {
+        console.log('VideoPlayer: Destroying HLS instance');
+        hlsInstance.destroy();
+      }
+      if (client) {
+        console.log('VideoPlayer: Destroying WebTorrent client');
+        client.destroy();
+      }
+      if (priorityBufferingCleanup) {
+        console.log('VideoPlayer: Cleaning up priority buffering');
+        priorityBufferingCleanup();
+        setPriorityBufferingCleanup(null);
+      }
+    };
+  }, [hlsInstance, client, priorityBufferingCleanup]);
+
+  const saveProgress = useCallback(async () => {
     const { data: { user } } = await supabase.auth.getUser();
     if (user && videoRef.current && magnet) {
       await supabase
