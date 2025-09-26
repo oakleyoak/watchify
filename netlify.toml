@@ -8,6 +8,11 @@
   to = "/index.html"
   status = 200
 
+[[headers]]
+  for = "/*.mjs"
+  [headers.values]
+    Content-Type = "application/javascript"
+
 [build.environment]
   VITE_SUPABASE_URL = "https://gfinjkozooknqcqvxrep.supabase.co"
   VITE_SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdmaW5qa296b29rbnFjcXZ4cmVwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTg4NjMwNTQsImV4cCI6MjA3NDQzOTA1NH0.GcWVZ0-of4RrWJ0eASUTvJH1bC95eS8dSyU0foE3hHY"

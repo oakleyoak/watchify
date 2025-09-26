@@ -38,10 +38,15 @@ export default defineConfig({
                id.includes('dgram') ||
                id.includes('net') ||
                id.includes('fs');
+      },
+      output: {
+        // Ensure .mjs files are handled correctly
+        format: 'es'
       }
     }
   },
   optimizeDeps: {
-    include: ['webtorrent', 'framer-motion']
+    include: ['webtorrent', 'framer-motion'],
+    exclude: ['motion-dom'] // Try excluding motion-dom to force bundling
   }
 })
