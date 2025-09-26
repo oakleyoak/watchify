@@ -13,14 +13,15 @@ const Home = () => {
     queryFn: async () => {
       if (!searchParams) return [];
 
-      const { query, category, resolution, minSeeders } = searchParams;
+      const { query, category, resolution, minSeeders, turkish } = searchParams;
 
       try {
         // Call Netlify Function for torrent search
         const params = new URLSearchParams({
           query,
           category,
-          limit: '50'
+          limit: '50',
+          turkish: turkish ? 'true' : 'false'
         });
 
         const response = await fetch(`/.netlify/functions/search?${params}`, {
@@ -71,7 +72,7 @@ const Home = () => {
     }
   }, [queryError]);
 
-  const handleSearch = (query, category, resolution, minSeeders) => {
+  const handleSearch = (query, category, resolution, minSeeders, turkish) => {
     if (!query.trim()) {
       setError('Please enter a search query');
       setSearchParams(null);
@@ -79,7 +80,7 @@ const Home = () => {
     }
 
     setError('');
-    setSearchParams({ query, category, resolution, minSeeders });
+    setSearchParams({ query, category, resolution, minSeeders, turkish });
   };
 
   return (
