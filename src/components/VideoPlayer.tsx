@@ -1,6 +1,13 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { supabase } from '../supabase';
 
+// Extend window interface for WebTorrent
+declare global {
+  interface Window {
+    WebTorrent: any;
+  }
+}
+
 const VideoPlayer = ({ magnet, resumeTime }) => {
   const videoRef = useRef(null);
   const [client, setClient] = useState(null);
@@ -180,29 +187,42 @@ const VideoPlayer = ({ magnet, resumeTime }) => {
 
     const initWebTorrent = async () => {
       try {
-        // Load WebTorrent from CDN to avoid build issues
+        // Load WebTorrent from CDN with specific version to avoid corruption
         if (!window.WebTorrent) {
+          console.log('VideoPlayer: Loading WebTorrent from CDN...');
           await new Promise((resolve, reject) => {
             const script = document.createElement('script');
-            script.src = 'https://cdn.jsdelivr.net/npm/webtorrent@latest/webtorrent.min.js';
-            script.onload = resolve;
-            script.onerror = reject;
+            script.src = 'https://cdn.jsdelivr.net/npm/webtorrent@2.1.4/webtorrent.min.js';
+            script.onload = () => {
+              console.log('VideoPlayer: WebTorrent loaded successfully');
+              resolve(undefined);
+            };
+            script.onerror = (err) => {
+              console.error('VideoPlayer: Failed to load WebTorrent script:', err);
+              reject(err);
+            };
             document.head.appendChild(script);
           });
         }
 
+        console.log('VideoPlayer: Initializing WebTorrent client...');
         wtClient = new window.WebTorrent();
 
         wtClient.on('error', (err) => {
-          console.error('WebTorrent error:', err);
-          setError('Failed to initialize torrent client - falling back to basic player');
+          console.error('VideoPlayer: WebTorrent client error:', err);
+          setError(`Torrent client error: ${err.message}. Try using an external torrent client with this magnet link: ${magnet}`);
           setLoading(false);
         });
 
+        wtClient.on('warning', (err) => {
+          console.warn('VideoPlayer: WebTorrent warning:', err);
+        });
+
+        console.log('VideoPlayer: WebTorrent client initialized successfully');
         setClient(wtClient);
       } catch (err) {
-        console.error('Failed to load WebTorrent:', err);
-        setError(`WebTorrent failed to load. You can try using an external torrent client with this magnet link: ${magnet}`);
+        console.error('VideoPlayer: Failed to initialize WebTorrent:', err);
+        setError(`WebTorrent failed to load: ${err.message}. You can try using an external torrent client with this magnet link: ${magnet}`);
         setLoading(false);
       }
     };
@@ -217,6 +237,7 @@ const VideoPlayer = ({ magnet, resumeTime }) => {
 
     return () => {
       if (wtClient) {
+        console.log('VideoPlayer: Destroying WebTorrent client');
         wtClient.destroy();
       }
     };

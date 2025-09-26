@@ -6,28 +6,50 @@ const ContinueWatching = () => {
   const [recent, setRecent] = useState([]);
   const [error, setError] = useState('');
 
-  useEffect(() => {
-    const fetchRecent = async () => {
-      try {
-        const { data: { user } } = await supabase.auth.getUser();
-        if (user) {
-          const { data, error } = await supabase
-            .from('user_history')
-            .select('torrent_id, title, poster_url, progress_seconds, last_watched_at')
-            .eq('user_id', user.id)
-            .order('last_watched_at', { ascending: false })
-            .limit(5);
+  const fetchRecent = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        const { data, error } = await supabase
+          .from('user_history')
+          .select('torrent_id, title, poster_url, progress_seconds, last_watched_at')
+          .eq('user_id', user.id)
+          .order('last_watched_at', { ascending: false })
+          .limit(5);
 
-          if (error) throw error;
-          setRecent(data || []);
-        }
-      } catch (error) {
-        console.error('Failed to fetch recent videos:', error);
-        setError('Failed to load recent videos');
+        if (error) throw error;
+        setRecent(data || []);
       }
-    };
+    } catch (error) {
+      console.error('Failed to fetch recent videos:', error);
+      setError('Failed to load recent videos');
+    }
+  };
+
+  useEffect(() => {
     fetchRecent();
   }, []);
+
+  const handleDelete = async (torrentId: string) => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        const { error } = await supabase
+          .from('user_history')
+          .delete()
+          .eq('user_id', user.id)
+          .eq('torrent_id', torrentId);
+
+        if (error) throw error;
+        
+        // Refresh the list
+        await fetchRecent();
+      }
+    } catch (error) {
+      console.error('Failed to delete history item:', error);
+      setError('Failed to delete item from history');
+    }
+  };
 
   return (
     <div className="mb-4">
@@ -35,8 +57,15 @@ const ContinueWatching = () => {
       {error && <p className="text-red-500 mb-2">{error}</p>}
       <div className="flex space-x-4 overflow-x-auto">
         {recent.map((item, index) => (
-          <div key={index} className="bg-gray-800 p-4 rounded min-w-48">
-            <p>{item.title}</p>
+          <div key={index} className="bg-gray-800 p-4 rounded min-w-48 relative">
+            <button
+              onClick={() => handleDelete(item.torrent_id)}
+              className="absolute top-2 right-2 text-red-500 hover:text-red-700 text-xl"
+              title="Remove from history"
+            >
+              ×
+            </button>
+            <p className="pr-6">{item.title}</p>
             <ResumeButton magnet={item.torrent_id} resumeTime={item.progress_seconds} />
           </div>
         ))}

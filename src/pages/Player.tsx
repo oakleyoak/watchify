@@ -23,27 +23,39 @@ const Player = () => {
     
     // Fetch resume time from Supabase
     const fetchResumeTime = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (user) {
-        const decodedMagnet = decodeURIComponent(magnet);
-        console.log('Player: Decoded magnet:', decodedMagnet.substring(0, 50) + '...');
-        const torrentId = hashMagnet(decodedMagnet);
-        console.log('Player: Hashed torrent ID:', torrentId);
-        
-        const { data } = await supabase
-          .from('user_history')
-          .select('progress_seconds')
-          .eq('user_id', user.id)
-          .eq('torrent_id', torrentId)
-          .single();
-        if (data) {
-          console.log('Player: Found resume time:', data.progress_seconds);
-          setResumeTime(data.progress_seconds);
-        } else {
-          console.log('Player: No resume time found');
+      try {
+        const { data: { user }, error: authError } = await supabase.auth.getUser();
+        if (authError) {
+          console.error('Player: Auth error:', authError);
+          return;
         }
-      } else {
-        console.log('Player: No authenticated user');
+        
+        if (user) {
+          const decodedMagnet = decodeURIComponent(magnet);
+          console.log('Player: Decoded magnet:', decodedMagnet.substring(0, 50) + '...');
+          const torrentId = hashMagnet(decodedMagnet);
+          console.log('Player: Hashed torrent ID:', torrentId);
+          
+          const { data, error } = await supabase
+            .from('user_history')
+            .select('progress_seconds')
+            .eq('user_id', user.id)
+            .eq('torrent_id', torrentId)
+            .single();
+          
+          if (error && error.code !== 'PGRST116') { // PGRST116 is "not found" which is expected
+            console.error('Player: Supabase error:', error);
+          } else if (data) {
+            console.log('Player: Found resume time:', data.progress_seconds);
+            setResumeTime(data.progress_seconds);
+          } else {
+            console.log('Player: No resume time found');
+          }
+        } else {
+          console.log('Player: No authenticated user');
+        }
+      } catch (error) {
+        console.error('Player: Failed to fetch resume time:', error);
       }
     };
     fetchResumeTime();
