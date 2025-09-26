@@ -42,13 +42,14 @@ const Player = () => {
             .select('progress_seconds')
             .eq('user_id', user.id)
             .eq('torrent_id', magnetHash)
-            .maybeSingle();
+            .order('last_watched_at', { ascending: false })
+            .limit(1);
           
           if (error) {
             console.error('Player: Supabase error:', error);
-          } else if (data) {
-            console.log('Player: Found resume time:', data.progress_seconds);
-            setResumeTime(data.progress_seconds);
+          } else if (data && data.length > 0) {
+            console.log('Player: Found resume time:', data[0].progress_seconds);
+            setResumeTime(data[0].progress_seconds);
           } else {
             console.log('Player: No resume time found');
           }

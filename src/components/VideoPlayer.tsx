@@ -263,7 +263,7 @@ const VideoPlayer = ({ magnet, magnetHash, resumeTime }) => {
 
   // Effect to trigger torrent streaming when video element becomes available
   useEffect(() => {
-    if (!magnet || magnet.startsWith('youtube:') || !isVideoElementReady) {
+    if (!magnet || magnet.startsWith('youtube:') || !isVideoElementReady || loading) {
       return;
     }
 
@@ -474,7 +474,7 @@ If torrenting fails, try using YouTube search instead.`);
     };
 
     initializeTorrentStreaming();
-  }, [magnet, magnetHash, resumeTime, isVideoElementReady, client]);
+  }, [magnet, magnetHash, resumeTime, isVideoElementReady]);
 
   // Effect to set video element ready state
   useEffect(() => {
