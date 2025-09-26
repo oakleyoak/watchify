@@ -9,6 +9,9 @@ const VideoPlayer = ({ magnet, resumeTime }) => {
   const [error, setError] = useState(null);
   const [file, setFile] = useState(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [progress, setProgress] = useState(0);
+  const [downloadSpeed, setDownloadSpeed] = useState(0);
+  const [uploadSpeed, setUploadSpeed] = useState(0);
 
   const toggleFullscreen = () => {
     if (!document.fullscreenElement) {

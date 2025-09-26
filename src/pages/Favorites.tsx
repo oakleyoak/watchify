@@ -1,36 +1,29 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import TorrentCard from '../components/TorrentCard';
 import { supabase } from '../supabase';
 
 const Favorites = () => {
-  const [favorites, setFavorites] = useState([]);
   const [error, setError] = useState('');
-  const [loading, setLoading] = useState(true);
+  const queryClient = useQueryClient();
 
-  useEffect(() => {
-    const fetchFavorites = async () => {
-      try {
-        setLoading(true);
-        const { data: { user } } = await supabase.auth.getUser();
-        if (user) {
-          const { data, error } = await supabase
-            .from('user_favorites')
-            .select('*')
-            .eq('user_id', user.id)
-            .order('added_at', { ascending: false });
+  const { data: favorites = [], isLoading: loading } = useQuery({
+    queryKey: ['user-favorites'],
+    queryFn: async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('User not authenticated');
 
-          if (error) throw error;
-          setFavorites(data || []);
-        }
-      } catch (error) {
-        console.error('Failed to fetch favorites:', error);
-        setError('Failed to load favorites');
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchFavorites();
-  }, []);
+      const { data, error } = await supabase
+        .from('user_favorites')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('added_at', { ascending: false });
+
+      if (error) throw error;
+      return data || [];
+    },
+    staleTime: 2 * 60 * 1000, // 2 minutes
+  });
 
   const deleteFromFavorites = async (torrent) => {
     try {
@@ -44,8 +37,8 @@ const Favorites = () => {
 
         if (error) throw error;
 
-        // Remove from local state
-        setFavorites(prev => prev.filter(item => item.torrent_id !== (torrent.magnet || torrent.torrent_id)));
+        // Invalidate and refetch the favorites query
+        queryClient.invalidateQueries({ queryKey: ['user-favorites'] });
       }
     } catch (error) {
       console.error('Failed to delete from favorites:', error);

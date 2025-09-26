@@ -1,36 +1,29 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import TorrentCard from '../components/TorrentCard';
 import { supabase } from '../supabase';
 
 const History = () => {
-  const [history, setHistory] = useState([]);
   const [error, setError] = useState('');
-  const [loading, setLoading] = useState(true);
+  const queryClient = useQueryClient();
 
-  useEffect(() => {
-    const fetchHistory = async () => {
-      try {
-        setLoading(true);
-        const { data: { user } } = await supabase.auth.getUser();
-        if (user) {
-          const { data, error } = await supabase
-            .from('user_history')
-            .select('*')
-            .eq('user_id', user.id)
-            .order('last_watched_at', { ascending: false });
+  const { data: history = [], isLoading: loading } = useQuery({
+    queryKey: ['user-history'],
+    queryFn: async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('User not authenticated');
 
-          if (error) throw error;
-          setHistory(data || []);
-        }
-      } catch (error) {
-        console.error('Failed to fetch history:', error);
-        setError('Failed to load watch history');
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchHistory();
-  }, []);
+      const { data, error } = await supabase
+        .from('user_history')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('last_watched_at', { ascending: false });
+
+      if (error) throw error;
+      return data || [];
+    },
+    staleTime: 2 * 60 * 1000, // 2 minutes
+  });
 
   const deleteFromHistory = async (torrent) => {
     try {
@@ -44,8 +37,8 @@ const History = () => {
 
         if (error) throw error;
 
-        // Remove from local state
-        setHistory(prev => prev.filter(item => item.torrent_id !== (torrent.magnet || torrent.torrent_id)));
+        // Invalidate and refetch the history query
+        queryClient.invalidateQueries({ queryKey: ['user-history'] });
       }
     } catch (error) {
       console.error('Failed to delete from history:', error);

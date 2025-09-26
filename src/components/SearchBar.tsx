@@ -1,12 +1,16 @@
-import { useState } from 'react';
+import React, { useState } from 'react';
 
-const SearchBar = ({ onSearch }) => {
-  const [query, setQuery] = useState('');
-  const [category, setCategory] = useState('all');
-  const [resolution, setResolution] = useState('all');
-  const [minSeeders, setMinSeeders] = useState(0);
+interface SearchBarProps {
+  onSearch: (query: string, category: string, resolution: string, minSeeders: number) => void;
+}
 
-  const handleSubmit = (e) => {
+const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
+  const [query, setQuery] = useState<string>('');
+  const [category, setCategory] = useState<string>('all');
+  const [resolution, setResolution] = useState<string>('all');
+  const [minSeeders, setMinSeeders] = useState<number>(0);
+
+  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     onSearch(query, category, resolution, minSeeders);
   };
@@ -16,18 +20,18 @@ const SearchBar = ({ onSearch }) => {
       <input
         type="text"
         value={query}
-        onChange={(e) => setQuery(e.target.value)}
+        onChange={(e: React.ChangeEvent<HTMLInputElement>) => setQuery(e.target.value)}
         placeholder="Search torrents..."
         className="w-full p-2 mb-2 bg-gray-800 text-white rounded"
       />
       <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-2">
-        <select value={category} onChange={(e) => setCategory(e.target.value)} className="p-2 bg-gray-800 text-white rounded">
+        <select value={category} onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setCategory(e.target.value)} className="p-2 bg-gray-800 text-white rounded">
           <option value="all">All Categories</option>
           <option value="movies">Movies</option>
           <option value="tv">TV</option>
           <option value="anime">Anime</option>
         </select>
-        <select value={resolution} onChange={(e) => setResolution(e.target.value)} className="p-2 bg-gray-800 text-white rounded">
+        <select value={resolution} onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setResolution(e.target.value)} className="p-2 bg-gray-800 text-white rounded">
           <option value="all">All Resolutions</option>
           <option value="720p">720p</option>
           <option value="1080p">1080p</option>
@@ -35,7 +39,7 @@ const SearchBar = ({ onSearch }) => {
         <input
           type="number"
           value={minSeeders}
-          onChange={(e) => setMinSeeders(e.target.value)}
+          onChange={(e: React.ChangeEvent<HTMLInputElement>) => setMinSeeders(Number(e.target.value))}
           placeholder="Min Seeders"
           className="p-2 bg-gray-800 text-white rounded"
         />

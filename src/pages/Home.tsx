@@ -1,23 +1,19 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import SearchBar from '../components/SearchBar';
 import ContinueWatching from '../components/ContinueWatching';
 import TorrentCard from '../components/TorrentCard';
-import { supabase } from '../supabase';
 
 const Home = () => {
-  const [results, setResults] = useState([]);
-  const [loading, setLoading] = useState(false);
+  const [searchParams, setSearchParams] = useState(null);
   const [error, setError] = useState('');
 
-  const handleSearch = async (query, category, resolution, minSeeders) => {
-    if (!query.trim()) {
-      setError('Please enter a search query');
-      return;
-    }
+  const { data: results = [], isLoading: loading, error: queryError } = useQuery({
+    queryKey: ['torrents', searchParams],
+    queryFn: async () => {
+      if (!searchParams) return [];
 
-    setLoading(true);
-    setError('');
-    try {
+      const { query, category, resolution, minSeeders } = searchParams;
       let url = `https://yts.mx/api/v2/list_movies.json?query_term=${encodeURIComponent(query)}&limit=20`;
 
       // Add filters if provided
@@ -57,18 +53,28 @@ const Home = () => {
         poster_url: movie.medium_cover_image
       })).filter(t => !minSeeders || t.seeders >= minSeeders) || [];
 
-      setResults(torrents);
-      if (torrents.length === 0) {
-        setError('No results found. Try different search terms.');
-      }
-    } catch (error) {
-      console.error('Search failed:', error);
-      setError(error.message || 'Search failed. Please try again.');
-      setResults([]);
-    } finally {
-      setLoading(false);
+      return torrents;
+    },
+    enabled: !!searchParams,
+    staleTime: 5 * 60 * 1000, // 5 minutes
+    gcTime: 10 * 60 * 1000, // 10 minutes
+  });
+
+  const handleSearch = (query, category, resolution, minSeeders) => {
+    if (!query.trim()) {
+      setError('Please enter a search query');
+      setSearchParams(null);
+      return;
     }
+
+    setError('');
+    setSearchParams({ query, category, resolution, minSeeders });
   };
+
+  // Handle query errors
+  if (queryError) {
+    setError(queryError.message || 'Search failed. Please try again.');
+  }
 
   return (
     <div className="container mx-auto p-4">
@@ -78,7 +84,7 @@ const Home = () => {
       {loading && <div className="text-center text-white">Loading...</div>}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mt-4">
         {results.map((torrent, index) => (
-          <TorrentCard key={index} torrent={torrent} />
+          <TorrentCard key={index} torrent={torrent} onDelete={() => {}} />
         ))}
       </div>
     </div>
