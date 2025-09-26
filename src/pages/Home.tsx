@@ -91,6 +91,11 @@ const Home = () => {
 
   return (
     <main className="container mx-auto p-4" id="main-content">
+      {/* Temporary debug content */}
+      <div style={{ color: 'white', background: 'red', padding: '20px', margin: '20px 0' }}>
+        DEBUG: App is rendering! If you can see this, the app is working.
+      </div>
+      
       <section aria-labelledby="search-section">
         <h2 id="search-section" className="sr-only">Torrent Search</h2>
         <div id="search">
