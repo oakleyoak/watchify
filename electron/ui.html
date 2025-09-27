@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Watchify</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        input { width: 100%; padding: 10px; margin-bottom: 10px; }
+        button { padding: 10px 20px; }
+        video { width: 100%; margin-top: 20px; }
+    </style>
+</head>
+<body>
+    <h1>Watchify Torrent Streamer</h1>
+    <input type="text" id="magnetInput" placeholder="Enter magnet URI">
+    <button onclick="startStream()">Start Stream</button>
+    <video id="videoPlayer" controls></video>
+
+    <script>
+        const daemonUrl = 'http://127.0.0.1:8800';
+
+        async function startStream() {
+            const magnet = document.getElementById('magnetInput').value;
+            if (!magnet) return alert('Enter a magnet URI');
+
+            try {
+                const response = await fetch(`${daemonUrl}/stream`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ magnet })
+                });
+                const data = await response.json();
+                if (data.playlist) {
+                    const video = document.getElementById('videoPlayer');
+                    video.src = `${daemonUrl}${data.playlist}`;
+                    video.play();
+                } else {
+                    alert('Error: ' + data.error);
+                }
+            } catch (e) {
+                alert('Failed to start stream: ' + e.message);
+            }
+        }
+    </script>
+</body>
+</html>

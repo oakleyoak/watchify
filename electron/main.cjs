@@ -26,7 +26,7 @@ function createWindow() {
   });
 
   // Load the app
-  const startUrl = isDev ? 'http://localhost:5173' : `file://${path.join(__dirname, '../dist/index.html')}`;
+  const startUrl = `file://${path.join(__dirname, 'ui.html')}`;
 
   console.log('Loading URL:', startUrl);
   mainWindow.loadURL(startUrl);
