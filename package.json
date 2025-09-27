@@ -26,9 +26,11 @@
     "daemon": "node ./daemon/index.mjs"
   },
   "dependencies": {
+    "cors": "^2.8.5",
     "express": "^5.1.0",
     "fluent-ffmpeg": "^2.1.3",
     "webtorrent": "^2.8.4",
+    "winston": "^3.17.0",
     "xmlbuilder": "^15.1.1"
   },
   "devDependencies": {

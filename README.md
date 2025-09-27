@@ -1,53 +1,56 @@
-
 # 🎬 Watchify
+
+## Legal Notice
+
+**Watchify is for educational and personal use only.** Ensure you have legal rights to access and stream any content. The developers are not responsible for any misuse of this software. Torrenting copyrighted material without permission is illegal in many jurisdictions.
 
 ## What is Watchify?
 
-Watchify is a modern, Stremio-inspired desktop app for streaming torrents with a single click. It features:
+Watchify is a modern, Stremio-inspired desktop app for streaming torrents with a single click. It features a background Node.js daemon for all torrent/HLS logic, with a minimal Electron UI.
 
-- 🔍 **Intelligent Search**: Search torrents via YTS and Pirate Bay with automatic fallback
-- 🎬 **One-Click Streaming**: Click a torrent, and Watchify streams it instantly in-app using WebTorrent (handled by Electron main process)
-- 🖥️ **Minimal, Reliable UI**: No confusing options—just click and play, with a fallback to VLC if streaming fails
-- 👤 **Secure Authentication**: Supabase-powered user management
-- 📚 **Smart History**: Automatic progress tracking and resume
-- ❤️ **Favorites System**: Curated collection of saved content
+- 🔍 **Magnet Input**: Paste a magnet URI and stream instantly
+- 🎬 **HLS Streaming**: Torrents are converted to HLS for smooth playback
+- 🖥️ **Minimal UI**: Simple input and video player
+- � **Status Monitoring**: View active streams and progress
+- 🧹 **Resource Management**: Automatic cleanup of streams and files
 
 ## Key Features
 
-- **Stremio-Like Experience**: One-click play, minimal UI, robust error handling
-- **Native Desktop App**: Built with Electron, React, TypeScript, and Vite
-- **WebTorrent Streaming**: All streaming handled in Electron main for reliability
-- **VLC Fallback**: If streaming fails, open the magnet link in VLC or your default torrent client
-- **Modern UI**: Tailwind CSS, Framer Motion, and accessibility best practices
+- **Daemon-Based Architecture**: Background Node.js service handles all streaming
+- **HLS Conversion**: Uses ffmpeg to segment torrents into HLS playlists
+- **Cross-Platform**: Electron shell works on Windows, macOS, Linux
+- **Robust Error Handling**: Logging, retries, and cleanup
+- **Security**: Daemon bound to localhost, CORS enabled
 
 ## How it Works
 
-1. **Search** for a torrent
-2. **Click to Play**: Electron main process starts streaming and serves the video over a local HTTP server
-3. **Watch**: The player loads the stream instantly. If anything fails, you get a clear error and a button to open in VLC
+1. **Start Daemon**: `npm run daemon` starts the background service
+2. **Launch UI**: `npm run electron` opens the minimal interface
+3. **Enter Magnet**: Paste a magnet URI, click "Start Stream"
+4. **Watch**: Video plays via HLS in the built-in player
+5. **Cleanup**: Use /cleanup endpoint or let it auto-clean
 
 ## Project Status
 
-- ✅ **Streaming is always handled by Electron main** (no more dual/complex streaming logic)
-- ✅ **Minimal, focused Player page**
-- ✅ **Clear error handling and fallback**
-- ✅ **All legacy/unused code removed**
+- ✅ **Repo cleaned and research documented**
+- ✅ **Node.js daemon with HTTP API**
+- ✅ **Torrent ingestion and HLS pipeline**
+- ✅ **Minimal Electron shell**
+- ✅ **Logging, error handling, CORS**
+- 🔄 **Testing, CI, packaging in progress**
 
 ## Tech Stack
 
-- **Electron** (main process streaming)
-- **React + TypeScript** (frontend)
-- **Vite** (build tool)
-- **WebTorrent** (torrent streaming)
-- **Supabase** (auth, database)
-- **Tailwind CSS** (UI)
+- **Node.js** (daemon backend)
+- **Express** (HTTP API)
+- **WebTorrent** (torrent client)
+- **fluent-ffmpeg** (HLS conversion)
+- **Electron** (minimal UI shell)
+- **Winston** (logging)
 
 ---
 
 **Built with ❤️ using modern web technologies**
-
-### Desktop Framework
-- **Electron 31.3.1** - Cross-platform desktop app framework
 - **React 18.3.1** - Concurrent features and modern hooks
 - **TypeScript 5.9.2** - Type-safe development experience
 - **Vite 5.4.8** - Lightning-fast build tool and dev server
