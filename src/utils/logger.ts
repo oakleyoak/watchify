@@ -7,14 +7,14 @@ export interface LogEntry {
   level: 'info' | 'warn' | 'error' | 'debug';
   category: string;
   message: string;
-  data?: any;
+  data?: Record<string, unknown>;
 }
 
 class Logger {
   private logs: LogEntry[] = [];
   private maxLogs = 1000;
 
-  private log(level: LogEntry['level'], category: string, message: string, data?: any) {
+  private log(level: LogEntry['level'], category: string, message: string, data?: Record<string, unknown>) {
     const entry: LogEntry = {
       timestamp: new Date().toISOString(),
       level,
@@ -38,19 +38,19 @@ class Logger {
     console[consoleMethod](`[${category}] ${message}`, data || '');
   }
 
-  info(category: string, message: string, data?: any) {
+  info(category: string, message: string, data?: Record<string, unknown>) {
     this.log('info', category, message, data);
   }
 
-  warn(category: string, message: string, data?: any) {
+  warn(category: string, message: string, data?: Record<string, unknown>) {
     this.log('warn', category, message, data);
   }
 
-  error(category: string, message: string, data?: any) {
+  error(category: string, message: string, data?: Record<string, unknown>) {
     this.log('error', category, message, data);
   }
 
-  debug(category: string, message: string, data?: any) {
+  debug(category: string, message: string, data?: Record<string, unknown>) {
     this.log('debug', category, message, data);
   }
 
@@ -85,11 +85,11 @@ export const logTorrentProgress = (infoHash: string, progress: number, downloadS
   });
 };
 
-export const logStreamingEvent = (event: string, data?: any) => {
+export const logStreamingEvent = (event: string, data?: Record<string, unknown>) => {
   logger.info('streaming', event, data);
 };
 
-export const logError = (category: string, error: Error | string, context?: any) => {
+export const logError = (category: string, error: Error | string, context?: Record<string, unknown>) => {
   const message = error instanceof Error ? error.message : error;
   logger.error(category, message, { error: error instanceof Error ? error.stack : error, ...context });
 };

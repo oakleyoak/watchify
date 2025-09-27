@@ -1,7 +1,6 @@
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
-import TorrentSearchApi from 'torrent-search-api';
 import SearchBar from '../components/SearchBar';
 import ContinueWatching from '../components/ContinueWatching';
 import TorrentCard from '../components/TorrentCard';
@@ -16,41 +15,18 @@ const Home = () => {
     queryFn: async () => {
       if (!searchParams) return [];
 
-      const { query, category, resolution } = searchParams;
-
       try {
-        // Use torrent-search-api directly
-        const providers = ['1337x', 'ThePirateBay', 'Rarbg', 'Limetorrents', 'KickassTorrents', 'Yts'];
+        // Use Electron IPC to search torrents
+        const response = await window.electronAPI.searchTorrents(searchParams);
 
-        // Enable providers
-        providers.forEach(provider => {
-          try {
-            TorrentSearchApi.enableProvider(provider);
-          } catch (e) {
-            console.warn(`Failed to enable provider ${provider}:`, e);
-          }
-        });
+        if (!response.success) {
+          throw new Error(response.error || 'Search failed');
+        }
 
-        // Search for torrents
-        const searchResults = await TorrentSearchApi.search(query, category === 'all' ? 'All' : category, 50);
-
-        // Filter and map results
-        const mappedTorrents = searchResults
-          .filter(torrent => !resolution || resolution === 'all' || torrent.title.toLowerCase().includes(resolution.toLowerCase()))
-          .map(torrent => ({
-            title: torrent.title || 'Unknown Title',
-            size: torrent.size || 'Unknown',
-            seeders: torrent.seeds || 0,
-            magnet: torrent.magnet || '',
-            poster_url: torrent.poster || ''
-          }))
-          .slice(0, 20); // Limit to 20 results
-
-        return mappedTorrents;
+        return response.results || [];
       } catch (error) {
-        console.error('Search API Error:', error);
-        const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
-        throw new Error(`Unable to search torrents: ${errorMessage}. The search service may be temporarily unavailable. Please try again later.`);
+        console.error('Search error:', error);
+        throw error;
       }
     },
     enabled: !!searchParams,

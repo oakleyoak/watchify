@@ -1,10 +1,11 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { supabase } from '../supabase';
+import { User } from '@supabase/supabase-js';
 import AuthModal from './AuthModal';
 
 const Header = () => {
-  const [user, setUser] = useState(null);
+  const [user, setUser] = useState<User | null>(null);
   const [authModalOpen, setAuthModalOpen] = useState(false);
   const [authMode, setAuthMode] = useState('login');
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -105,7 +106,7 @@ const Header = () => {
             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
             className="md:hidden text-white focus:outline-none focus:ring-2 focus:ring-blue-500 rounded p-1"
             aria-label={mobileMenuOpen ? "Close navigation menu" : "Open navigation menu"}
-            aria-expanded={mobileMenuOpen ? "true" : "false"}
+            aria-expanded={mobileMenuOpen}
             aria-controls="mobile-navigation"
           >
             {mobileMenuOpen ? '✕' : '☰'}

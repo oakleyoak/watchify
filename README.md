@@ -1,46 +1,50 @@
+
 # 🎬 Watchify
 
-A modern, professional torrent streaming desktop application built with React, TypeScript, Electron, and VLC. Stream torrents directly in VLC media player with enterprise-grade video controls, comprehensive accessibility, and robust user management.
+## What is Watchify?
 
-![Watchify](https://img.shields.io/badge/Watchify-Desktop_App-blue?style=for-the-badge&logo=video&logoColor=white)
-![React](https://img.shields.io/badge/React-18.3.1-61DAFB?style=flat-square&logo=react)
-![TypeScript](https://img.shields.io/badge/TypeScript-5.9.2-3178C6?style=flat-square&logo=typescript)
-![Electron](https://img.shields.io/badge/Electron-31.3.1-47848F?style=flat-square&logo=electron)
-![VLC](https://img.shields.io/badge/VLC-Integrated-FF7E00?style=flat-square&logo=vlcmediaplayer)
+Watchify is a modern, Stremio-inspired desktop app for streaming torrents with a single click. It features:
 
-## ✨ Features
-
-### 🎯 Core Functionality
 - 🔍 **Intelligent Search**: Search torrents via YTS and Pirate Bay with automatic fallback
-- 🎬 **VLC Integration**: Stream torrents directly in VLC media player for optimal performance
-- 🧲 **Torrent Streaming**: Direct peer-to-peer streaming with VLC playback
-- 👤 **Secure Authentication**: Supabase-powered user management with JWT tokens
-- 📚 **Smart History**: Automatic progress tracking with resume functionality
+- 🎬 **One-Click Streaming**: Click a torrent, and Watchify streams it instantly in-app using WebTorrent (handled by Electron main process)
+- 🖥️ **Minimal, Reliable UI**: No confusing options—just click and play, with a fallback to VLC if streaming fails
+- 👤 **Secure Authentication**: Supabase-powered user management
+- 📚 **Smart History**: Automatic progress tracking and resume
 - ❤️ **Favorites System**: Curated collection of saved content
-- �️ **Desktop Application**: Native desktop experience with Electron
 
-### 🎥 Professional Video Experience
-- **VLC Controls**: Full VLC media player controls and features
-- **Advanced Playback**: Hardware acceleration, multiple audio tracks, subtitles
-- **Keyboard Shortcuts**: Full keyboard navigation (Space, arrows, F, M, P)
-- **Responsive Design**: Optimized for desktop with native window controls
-- **Smooth Animations**: Framer Motion-powered transitions
+## Key Features
 
-### ♿ Accessibility Excellence
-- **WCAG 2.1 AA Compliant**: Full screen reader and keyboard support
-- **ARIA Labels**: Comprehensive accessibility attributes
-- **Skip Links**: Quick navigation for keyboard users
-- **High Contrast**: Automatic adaptation to system preferences
-- **Reduced Motion**: Respects user accessibility settings
+- **Stremio-Like Experience**: One-click play, minimal UI, robust error handling
+- **Native Desktop App**: Built with Electron, React, TypeScript, and Vite
+- **WebTorrent Streaming**: All streaming handled in Electron main for reliability
+- **VLC Fallback**: If streaming fails, open the magnet link in VLC or your default torrent client
+- **Modern UI**: Tailwind CSS, Framer Motion, and accessibility best practices
 
-### 🚀 Modern Architecture
-- **Direct API Integration**: Torrent-Search-API runs directly in Electron
-- **Type-Safe**: Full TypeScript implementation
-- **Optimized Performance**: Code splitting, lazy loading, and caching
-- **Error Boundaries**: Graceful error handling throughout
-- **Real-time Data**: React Query for intelligent caching
+## How it Works
 
-## 🛠️ Tech Stack
+1. **Search** for a torrent
+2. **Click to Play**: Electron main process starts streaming and serves the video over a local HTTP server
+3. **Watch**: The player loads the stream instantly. If anything fails, you get a clear error and a button to open in VLC
+
+## Project Status
+
+- ✅ **Streaming is always handled by Electron main** (no more dual/complex streaming logic)
+- ✅ **Minimal, focused Player page**
+- ✅ **Clear error handling and fallback**
+- ✅ **All legacy/unused code removed**
+
+## Tech Stack
+
+- **Electron** (main process streaming)
+- **React + TypeScript** (frontend)
+- **Vite** (build tool)
+- **WebTorrent** (torrent streaming)
+- **Supabase** (auth, database)
+- **Tailwind CSS** (UI)
+
+---
+
+**Built with ❤️ using modern web technologies**
 
 ### Desktop Framework
 - **Electron 31.3.1** - Cross-platform desktop app framework
@@ -50,7 +54,8 @@ A modern, professional torrent streaming desktop application built with React, T
 - **Tailwind CSS 3.4.14** - Utility-first CSS with custom design system
 
 ### Media & Streaming
-- **VLC Media Player** - Professional video playback with hardware acceleration
+- **WebTorrent 2.8.4** - Peer-to-peer streaming in the browser
+- **VLC Media Player** - External player integration
 - **Framer Motion 12.23.22** - Production-ready animations
 - **Electron IPC** - Secure communication between main and renderer processes
 

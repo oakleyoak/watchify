@@ -31,7 +31,7 @@ function App() {
         <Suspense fallback={<PageLoader />}>
           <Routes>
             <Route path="/" element={<Home />} />
-            <Route path="/player/:magnet" element={<Player />} />
+            <Route path="/player" element={<Player />} />
             <Route path="/history" element={<ProtectedRoute><History /></ProtectedRoute>} />
             <Route path="/favorites" element={<ProtectedRoute><Favorites /></ProtectedRoute>} />
           </Routes>

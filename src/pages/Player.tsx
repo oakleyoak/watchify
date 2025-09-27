@@ -1,4 +1,4 @@
-import { useParams } from 'react-router-dom';
+import { useSearchParams } from 'react-router-dom';
 import { useState, useEffect } from 'react';
 import VideoPlayer from '../components/VideoPlayer';
 import { supabase } from '../supabase';
@@ -15,12 +15,43 @@ const hashMagnet = (magnet: string): string => {
 };
 
 const Player = () => {
-  const { magnet } = useParams();
+  const [searchParams] = useSearchParams();
+  const magnet = searchParams.get('magnet');
+  // const title = searchParams.get('title');
   const [resumeTime, setResumeTime] = useState(0);
-  const [useExternalPlayer, setUseExternalPlayer] = useState(false);
+  // Only show fallback to VLC if streaming fails
+  const [showVLCFallback, setShowVLCFallback] = useState(false);
+  const [isStreaming, setIsStreaming] = useState(false);
+  const [streamUrl, setStreamUrl] = useState<string | null>(null);
 
-  const decodedMagnet = decodeURIComponent(magnet);
-  const magnetHash = hashMagnet(decodedMagnet);
+  const decodedMagnet = magnet ? decodeURIComponent(magnet) : '';
+  const magnetHash = decodedMagnet ? hashMagnet(decodedMagnet) : '';
+  const hasValidMagnet = decodedMagnet && decodedMagnet.startsWith('magnet:?') && decodedMagnet.includes('xt=urn:btih:');
+
+  // Validate magnet link format
+  const validateMagnetLink = (magnetLink: string): { isValid: boolean; error?: string } => {
+    if (!magnetLink) {
+      return { isValid: false, error: 'No magnet link provided' };
+    }
+
+    if (!magnetLink.startsWith('magnet:?')) {
+      return { isValid: false, error: 'Invalid magnet link format - must start with "magnet:?"' };
+    }
+
+    if (!magnetLink.includes('xt=urn:btih:')) {
+      return { isValid: false, error: 'Invalid magnet link - missing torrent hash (xt=urn:btih:)' };
+    }
+
+    // Check for basic structure
+    const url = new URL(magnetLink);
+    if (!url.searchParams.has('xt')) {
+      return { isValid: false, error: 'Invalid magnet link - missing xt parameter' };
+    }
+
+    return { isValid: true };
+  };
+
+  const magnetValidation = validateMagnetLink(decodedMagnet);
 
   useEffect(() => {
     console.log('Player: Component mounted with magnet param:', magnet);
@@ -65,115 +96,127 @@ const Player = () => {
   }, [magnet, decodedMagnet, magnetHash]);
 
   const handleOpenInVLC = async () => {
-    if (window.electronAPI) {
-      // Desktop app: use Electron API
-      const result = await window.electronAPI.openInVLC(decodedMagnet);
-      if (result.success) {
-        console.log('Opened in VLC via', result.method);
-      } else {
-        alert('Failed to open in VLC. Please make sure VLC is installed.');
-      }
-    } else {
-      // Web fallback: open external link
-      window.open(decodedMagnet, '_blank');
+    if (!magnetValidation.isValid) {
+      setShowVLCFallback(true);
+      return;
     }
-  };
-
-  const handleCopyMagnet = async () => {
     if (window.electronAPI) {
-      // Desktop app: use Electron clipboard
-      await window.electronAPI.copyToClipboard(decodedMagnet);
-      alert('Magnet link copied to clipboard!');
-    } else {
-      // Web fallback: use browser clipboard
       try {
-        await navigator.clipboard.writeText(decodedMagnet);
-        alert('Magnet link copied to clipboard!');
-      } catch (err) {
-        console.error('Failed to copy magnet link:', err);
-        // Fallback: select the text
-        const textArea = document.createElement('textarea');
-        textArea.value = decodedMagnet;
-        document.body.appendChild(textArea);
-        textArea.select();
-        document.execCommand('copy');
-        document.body.removeChild(textArea);
-        alert('Magnet link copied to clipboard!');
+        const result = await window.electronAPI.openInVLC(decodedMagnet);
+        if (!result.success) setShowVLCFallback(true);
+      } catch {
+        setShowVLCFallback(true);
+      }
+    } else {
+      try {
+        window.open(decodedMagnet, '_blank');
+      } catch {
+        setShowVLCFallback(true);
       }
     }
   };
 
-  console.log('Player: Rendering with magnet:', decodedMagnet.substring(0, 50) + '...');
+  const handleSetVLCAsDefault = async () => {
+    if (window.electronAPI) {
+      const result = await window.electronAPI.setVLCAsDefault();
+      if (result.success) {
+        alert('VLC has been set as the default magnet link handler!');
+      } else {
+        alert('Failed to set VLC as default: ' + (result.error || 'Unknown error'));
+      }
+    }
+  };
 
+  const handleStartWebTorrentStream = async () => {
+    setShowVLCFallback(false);
+    if (!magnetValidation.isValid) {
+      setShowVLCFallback(true);
+      return;
+    }
+    if (!window.electronAPI) {
+      setShowVLCFallback(true);
+      return;
+    }
+    setIsStreaming(true);
+    setStreamUrl(null);
+    try {
+      const result = await window.electronAPI.startWebTorrentStream(decodedMagnet);
+      if (result.success && result.streamUrl) {
+        setStreamUrl(result.streamUrl);
+      } else {
+        setStreamUrl(null);
+        setShowVLCFallback(true);
+      }
+    } catch {
+      setStreamUrl(null);
+      setShowVLCFallback(true);
+    } finally {
+      setIsStreaming(false);
+    }
+  };
+
+  // const handleCopyMagnet = async () => {
+  //   if (window.electronAPI) {
+  //     // Desktop app: use Electron clipboard
+  //     await window.electronAPI.copyToClipboard(decodedMagnet);
+  //     alert('Magnet link copied to clipboard!');
   return (
     <div className="container mx-auto p-4">
-      <div className="mb-4">
-        <h1 className="text-2xl font-bold mb-4">Video Player</h1>
-        
-        {/* Player Options */}
-        <div className="bg-gray-100 dark:bg-gray-800 p-4 rounded-lg mb-4">
-          <h2 className="text-lg font-semibold mb-2">Playback Options</h2>
-          <div className="flex flex-wrap gap-2 mb-4">
-            <button
-              onClick={() => setUseExternalPlayer(false)}
-              className={`px-4 py-2 rounded ${!useExternalPlayer ? 'bg-blue-500 text-white' : 'bg-gray-300 dark:bg-gray-600'}`}
-            >
-              In-Browser Player
-            </button>
-            <button
-              onClick={() => setUseExternalPlayer(true)}
-              className={`px-4 py-2 rounded ${useExternalPlayer ? 'bg-blue-500 text-white' : 'bg-gray-300 dark:bg-gray-600'}`}
-            >
-              External Player (VLC)
-            </button>
-          </div>
-
-          {useExternalPlayer ? (
-            <div className="space-y-2">
-              <p className="text-sm text-gray-600 dark:text-gray-400">
-                Open this torrent in VLC or your preferred media player:
-              </p>
-              <div className="flex flex-wrap gap-2">
-                <a
-                  href={decodedMagnet}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600 inline-block"
-                >
-                  Open in VLC
-                </a>
-                <button
-                  onClick={handleCopyMagnet}
-                  className="px-4 py-2 bg-purple-500 text-white rounded hover:bg-purple-600"
-                >
-                  Copy Magnet Link
-                </button>
-              </div>
-              <p className="text-xs text-gray-500 dark:text-gray-500 mt-2">
-                Magnet: {decodedMagnet.substring(0, 100)}...
-              </p>
-              <div className="text-xs text-gray-500 dark:text-gray-500">
-                <p><strong>Instructions:</strong></p>
-                <ul className="list-disc list-inside">
-                  <li>Click "Open in VLC" to open the magnet link in your browser</li>
-                  <li>If VLC doesn't open automatically, copy the magnet link and paste it in VLC (Media → Open Network Stream)</li>
-                  <li>Make sure VLC is installed and associated with magnet links</li>
-                </ul>
-              </div>
-            </div>
-          ) : (
-            <p className="text-sm text-gray-600 dark:text-gray-400">
-              Playing video directly in your browser using WebTorrent.
-            </p>
-          )}
+      <h1 className="text-2xl font-bold mb-4">Video Player</h1>
+      {typeof streamUrl === 'string' && streamUrl && (
+        <VideoPlayer streamUrl={streamUrl} resumeTime={resumeTime} />
+      )}
+      {!streamUrl && !showVLCFallback && (
+        <div className="flex flex-col items-center justify-center h-64">
+          <button
+            onClick={handleStartWebTorrentStream}
+            disabled={isStreaming}
+            className={`px-6 py-3 rounded text-lg font-semibold ${isStreaming ? 'bg-gray-500 text-white cursor-wait' : 'bg-orange-500 text-white hover:bg-orange-600'}`}
+          >
+            {isStreaming ? 'Starting Stream...' : 'Start Streaming'}
+          </button>
         </div>
-      </div>
-
-      {!useExternalPlayer && (
-        <VideoPlayer magnet={decodedMagnet} magnetHash={magnetHash} resumeTime={resumeTime} />
+      )}
+      {!streamUrl && showVLCFallback && (
+        <div className="flex flex-col items-center justify-center h-64">
+          <div className="mb-4 text-red-600 font-semibold">Streaming failed or not supported. Try opening in VLC or another torrent client.</div>
+          <button
+            onClick={handleOpenInVLC}
+            className="px-6 py-3 rounded text-lg font-semibold bg-green-600 text-white hover:bg-green-700"
+          >
+            Open Magnet in VLC
+          </button>
+        </div>
       )}
     </div>
   );
-};
-
-export default Player;
+        return (
+          <div className="container mx-auto p-4">
+            <h1 className="text-2xl font-bold mb-4">Video Player</h1>
+            {streamUrl && (
+              <VideoPlayer streamUrl={streamUrl} resumeTime={resumeTime} />
+            )}
+            {!streamUrl && !showVLCFallback && (
+              <div className="flex flex-col items-center justify-center h-64">
+                <button
+                  onClick={handleStartWebTorrentStream}
+                  disabled={isStreaming}
+                  className={`px-6 py-3 rounded text-lg font-semibold ${isStreaming ? 'bg-gray-500 text-white cursor-wait' : 'bg-orange-500 text-white hover:bg-orange-600'}`}
+                >
+                  {isStreaming ? 'Starting Stream...' : 'Start Streaming'}
+                </button>
+              </div>
+            )}
+            {!streamUrl && showVLCFallback && (
+              <div className="flex flex-col items-center justify-center h-64">
+                <div className="mb-4 text-red-600 font-semibold">Streaming failed or not supported. Try opening in VLC or another torrent client.</div>
+                <button
+                  onClick={handleOpenInVLC}
+                  className="px-6 py-3 rounded text-lg font-semibold bg-green-600 text-white hover:bg-green-700"
+                >
+                  Open Magnet in VLC
+                </button>
+              </div>
+            )}
+          </div>
+        );

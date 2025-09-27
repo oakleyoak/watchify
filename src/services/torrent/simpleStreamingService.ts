@@ -3,7 +3,7 @@
  */
 
 import WebTorrent from 'webtorrent';
-import { MagnetParser, MagnetInfo } from './magnetParser';
+import { MagnetParser } from './magnetParser';
 import { FileSelector } from './fileSelector';
 import { logStreamingEvent, logError } from '../../utils/logger';
 import { StreamingError } from '../../utils/errorHandler';
@@ -168,10 +168,10 @@ export class SimpleStreamingService {
     };
 
     // Update progress every second
-    this.progressInterval = setInterval(updateProgress, 1000);
+    this.progressInterval = setInterval(updateProgress, 1000) as unknown as number;
   }
 
-  private progressInterval?: NodeJS.Timeout;
+  private progressInterval?: number;
 
   private updateStatus(updates: Partial<StreamStatus>) {
     this.status = { ...this.status, ...updates };

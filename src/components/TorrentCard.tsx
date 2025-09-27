@@ -98,7 +98,7 @@ const TorrentCard = ({ torrent, onDelete, showDelete = false }) => { // eslint-d
       >
         <div className="hover:scale-105 transition-transform duration-200">
           <Link
-            to={`/player/${encodeURIComponent(torrent.magnet)}`}
+            to={`/player?magnet=${encodeURIComponent(torrent.magnet)}`}
             onClick={addToHistory}
             className="w-full inline-flex items-center justify-center px-4 py-3 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white font-semibold rounded-xl transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:ring-offset-slate-900 shadow-lg hover:shadow-xl"
             aria-label={`Watch ${torrent.title}`}

@@ -1,13 +1,20 @@
-import { useState } from 'react';
+import React, { useState } from 'react';
 import { supabase } from '../supabase';
 
-const AuthModal = ({ isOpen, onClose, mode, setMode }) => {
+interface AuthModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  mode: string;
+  setMode: (mode: string) => void;
+}
+
+const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, mode, setMode }) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
-  const handleSubmit = async (e) => {
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setLoading(true);
     setError('');
@@ -29,8 +36,8 @@ const AuthModal = ({ isOpen, onClose, mode, setMode }) => {
         alert('Check your email for the confirmation link!');
         onClose();
       }
-    } catch (error) {
-      setError(error.message);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'An error occurred');
     } finally {
       setLoading(false);
     }
@@ -55,6 +62,7 @@ const AuthModal = ({ isOpen, onClose, mode, setMode }) => {
               className="w-full p-2 rounded bg-gray-700 text-white"
               required
               autoComplete="email"
+              placeholder="Enter your email"
             />
           </div>
 
@@ -68,6 +76,7 @@ const AuthModal = ({ isOpen, onClose, mode, setMode }) => {
               required
               minLength={6}
               autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
+              placeholder="Enter your password"
             />
           </div>
 

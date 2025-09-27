@@ -20,7 +20,7 @@ class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundarySta
     return { hasError: true, error };
   }
 
-  componentDidCatch(error: Error, errorInfo: any) {
+  componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
     console.error('Error caught by boundary:', error, errorInfo);
   }
 
@@ -54,7 +54,7 @@ class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundarySta
             >
               Refresh Page
             </button>
-            {process.env.NODE_ENV === 'development' && this.state.error && (
+            {import.meta.env.DEV && this.state.error && (
               <details className="mt-4 text-left">
                 <summary className="cursor-pointer text-gray-400">Error Details</summary>
                 <pre className="text-xs text-red-300 mt-2 p-2 bg-gray-800 rounded overflow-auto">

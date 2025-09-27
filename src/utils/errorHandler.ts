@@ -23,7 +23,7 @@ export class StreamingError extends Error {
     public code: string,
     public category: string,
     public recoverable: boolean = false,
-    public context?: any
+    public context?: Record<string, unknown>
   ) {
     super(message);
     this.name = 'StreamingError';
@@ -31,19 +31,19 @@ export class StreamingError extends Error {
 }
 
 export class TorrentError extends StreamingError {
-  constructor(message: string, code: string, recoverable: boolean = false, context?: any) {
+  constructor(message: string, code: string, recoverable: boolean = false, context?: Record<string, unknown>) {
     super(message, code, 'torrent', recoverable, context);
   }
 }
 
 export class NetworkError extends StreamingError {
-  constructor(message: string, code: string, recoverable: boolean = true, context?: any) {
+  constructor(message: string, code: string, recoverable: boolean = true, context?: Record<string, unknown>) {
     super(message, code, 'network', recoverable, context);
   }
 }
 
 export class HLSStreamingError extends StreamingError {
-  constructor(message: string, code: string, recoverable: boolean = true, context?: any) {
+  constructor(message: string, code: string, recoverable: boolean = true, context?: Record<string, unknown>) {
     super(message, code, 'hls', recoverable, context);
   }
 }

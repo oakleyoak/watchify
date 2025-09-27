@@ -7,7 +7,7 @@ import tseslint from '@typescript-eslint/eslint-plugin'
 import tsparser from '@typescript-eslint/parser'
 
 export default [
-  { ignores: ['dist'] },
+  { ignores: ['dist', 'vitest.config.ts'] },
   {
     files: ['**/*.{js,jsx}'],
     languageOptions: {
@@ -41,7 +41,7 @@ export default [
     files: ['**/*.{ts,tsx}'],
     languageOptions: {
       ecmaVersion: 2020,
-      globals: globals.browser,
+      globals: { ...globals.browser, ...globals.node },
       parser: tsparser,
       parserOptions: {
         ecmaVersion: 'latest',
@@ -64,6 +64,7 @@ export default [
       ...reactHooks.configs.recommended.rules,
       ...tseslint.configs.recommended.rules,
       'react/jsx-no-target-blank': 'off',
+      'react/prop-types': 'off',
       'react-refresh/only-export-components': [
         'warn',
         { allowConstantExport: true },
@@ -72,6 +73,20 @@ export default [
       '@typescript-eslint/explicit-function-return-type': 'off',
       '@typescript-eslint/explicit-module-boundary-types': 'off',
       '@typescript-eslint/no-explicit-any': 'warn',
+    },
+  },
+  {
+    files: ['electron/**/*.js', 'electron/**/*.cjs', 'netlify/**/*.js'],
+    languageOptions: {
+      ecmaVersion: 2020,
+      globals: { ...globals.browser, ...globals.node },
+      parserOptions: {
+        ecmaVersion: 'latest',
+        sourceType: 'module',
+      },
+    },
+    rules: {
+      ...js.configs.recommended.rules,
     },
   },
 ]

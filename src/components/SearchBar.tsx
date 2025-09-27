@@ -1,8 +1,19 @@
 import React, { useState } from 'react';
 
+interface SearchResult {
+  id: string;
+  title: string;
+  thumbnail: string;
+  channel?: string;
+  type?: string;
+  magnet?: string;
+  size?: string;
+  seeders?: number;
+}
+
 interface SearchBarProps {
   onSearch: (query: string, category: string, resolution: string) => void;
-  onStreamSelect?: (stream: any) => void;
+  onStreamSelect?: (stream: SearchResult) => void;
 }
 
 const SearchBar: React.FC<SearchBarProps> = ({ onSearch, onStreamSelect }) => {
@@ -11,7 +22,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch, onStreamSelect }) => {
   const [resolution, setResolution] = useState<string>('all');
   const [streamingMode, setStreamingMode] = useState<'youtube' | 'torrent'>('torrent');
   const [isSearching, setIsSearching] = useState(false);
-  const [searchResults, setSearchResults] = useState<any[]>([]);
+  const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -55,7 +66,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch, onStreamSelect }) => {
     }
   };
 
-  const handleStreamSelect = (stream: any) => {
+  const handleStreamSelect = (stream: SearchResult) => {
     if (onStreamSelect) {
       if (stream.type === 'youtube') {
         onStreamSelect({

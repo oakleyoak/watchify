@@ -113,7 +113,7 @@ export class HLSStreamingService {
           resolve();
         };
 
-        const onError = (event: any, data: any) => {
+        const onError = (event: string, data: { fatal: boolean; details: string }) => {
           if (data.fatal) {
             clearTimeout(timeout);
             this.hlsInstance!.off(Hls.Events.MANIFEST_PARSED, onManifestParsed);
@@ -182,7 +182,7 @@ export class HLSStreamingService {
   /**
    * Handle HLS errors
    */
-  private handleHLSError(data: any): void {
+  private handleHLSError(data: { type: string; details: string; fatal: boolean }): void {
     const { type, details, fatal } = data;
 
     logger.warn('hls-streaming', 'HLS error occurred', {

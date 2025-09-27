@@ -8,6 +8,12 @@ import { FileSelector } from './fileSelector';
 import { PriorityBuffer } from './priorityBuffer';
 import { HLSStreamingService } from './hlsStreamingService';
 import { logStreamingEvent, logError } from '../../utils/logger';
+
+interface TorrentProgress {
+  progress: number;
+  downloadSpeed: number;
+  peers: number;
+}
 import { StreamingError, createErrorHandler } from '../../utils/errorHandler';
 
 export interface StreamMagnetOptions {
@@ -110,7 +116,7 @@ export class StreamingService {
         state: 'error',
         error: error instanceof Error ? error.message : 'Unknown streaming error'
       });
-      this.errorHandler.handle(error);
+      this.errorHandler.handle(error instanceof Error ? error : new Error(String(error)));
       throw error;
     }
   }
@@ -121,14 +127,14 @@ export class StreamingService {
   private async generateHLSUrl(magnetInfo: MagnetInfo, fileIndex: number): Promise<string> {
     // This would typically call a backend service to convert the torrent file to HLS
     // For now, return a placeholder URL
-    const baseUrl = process.env.REACT_APP_HLS_BASE_URL || 'http://localhost:8888';
+    const baseUrl = import.meta.env.VITE_HLS_BASE_URL || 'http://localhost:8888';
     return `${baseUrl}/.netlify/functions/hls?magnet=${encodeURIComponent(magnetInfo.raw)}&file=${fileIndex}`;
   }
 
   /**
    * Handle torrent progress updates
    */
-  private handleTorrentProgress(progress: any): void {
+  private handleTorrentProgress(progress: TorrentProgress): void {
     if (!this.priorityBuffer) return;
 
     const bufferHealth = this.priorityBuffer.getBufferHealth(0); // Simplified
@@ -240,13 +246,6 @@ export class StreamingService {
     });
 
     logStreamingEvent('Quality level changed', { levelIndex, quality: level?.height });
-  }
-
-  /**
-   * Get buffer information
-   */
-  getBufferInfo(): any {
-    return this.hlsService.getBufferInfo();
   }
 
   /**
