@@ -2,7 +2,22 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { supabase } from '../supabase';
 
-const TorrentCard = ({ torrent, onDelete, showDelete = false }) => { // eslint-disable-line @typescript-eslint/no-unused-vars
+
+interface Torrent {
+  magnet?: string;
+  title?: string;
+  poster_url?: string;
+  size?: string;
+  seeders?: number;
+}
+
+interface TorrentCardProps {
+  torrent: Torrent;
+  onDelete?: () => void;
+  showDelete?: boolean;
+}
+
+const TorrentCard = ({ torrent, onDelete, showDelete = false }: TorrentCardProps) => {
   const [error, setError] = useState('');
 
   // Simple hash function for magnet URLs
@@ -20,7 +35,7 @@ const TorrentCard = ({ torrent, onDelete, showDelete = false }) => { // eslint-d
     try {
       setError('');
       const { data: { user } } = await supabase.auth.getUser();
-      if (user) {
+      if (user && torrent.magnet && torrent.title) {
         const { error } = await supabase.from('user_history').upsert({
           user_id: user.id,
           torrent_id: hashMagnet(torrent.magnet),
@@ -98,10 +113,12 @@ const TorrentCard = ({ torrent, onDelete, showDelete = false }) => { // eslint-d
       >
         <div className="hover:scale-105 transition-transform duration-200">
           <Link
-            to={`/player?magnet=${encodeURIComponent(torrent.magnet)}`}
+            to={torrent.magnet ? `/player?magnet=${encodeURIComponent(torrent.magnet)}` : '#'}
             onClick={addToHistory}
             className="w-full inline-flex items-center justify-center px-4 py-3 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white font-semibold rounded-xl transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:ring-offset-slate-900 shadow-lg hover:shadow-xl"
-            aria-label={`Watch ${torrent.title}`}
+            aria-label={`Watch ${torrent.title || 'this torrent'}`}
+            tabIndex={torrent.magnet ? 0 : -1}
+            aria-disabled={!torrent.magnet}
           >
             <svg className="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 24 24">
               <path d="M8 5v14l11-7z"/>

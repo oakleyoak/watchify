@@ -160,11 +160,12 @@ const Player = () => {
   //     // Desktop app: use Electron clipboard
   //     await window.electronAPI.copyToClipboard(decodedMagnet);
   //     alert('Magnet link copied to clipboard!');
+
   return (
     <div className="container mx-auto p-4">
       <h1 className="text-2xl font-bold mb-4">Video Player</h1>
       {typeof streamUrl === 'string' && streamUrl && (
-        <VideoPlayer streamUrl={streamUrl} resumeTime={resumeTime} />
+        <VideoPlayer streamUrl={streamUrl || ''} resumeTime={resumeTime} />
       )}
       {!streamUrl && !showVLCFallback && (
         <div className="flex flex-col items-center justify-center h-64">
@@ -190,33 +191,6 @@ const Player = () => {
       )}
     </div>
   );
-        return (
-          <div className="container mx-auto p-4">
-            <h1 className="text-2xl font-bold mb-4">Video Player</h1>
-            {streamUrl && (
-              <VideoPlayer streamUrl={streamUrl} resumeTime={resumeTime} />
-            )}
-            {!streamUrl && !showVLCFallback && (
-              <div className="flex flex-col items-center justify-center h-64">
-                <button
-                  onClick={handleStartWebTorrentStream}
-                  disabled={isStreaming}
-                  className={`px-6 py-3 rounded text-lg font-semibold ${isStreaming ? 'bg-gray-500 text-white cursor-wait' : 'bg-orange-500 text-white hover:bg-orange-600'}`}
-                >
-                  {isStreaming ? 'Starting Stream...' : 'Start Streaming'}
-                </button>
-              </div>
-            )}
-            {!streamUrl && showVLCFallback && (
-              <div className="flex flex-col items-center justify-center h-64">
-                <div className="mb-4 text-red-600 font-semibold">Streaming failed or not supported. Try opening in VLC or another torrent client.</div>
-                <button
-                  onClick={handleOpenInVLC}
-                  className="px-6 py-3 rounded text-lg font-semibold bg-green-600 text-white hover:bg-green-700"
-                >
-                  Open Magnet in VLC
-                </button>
-              </div>
-            )}
-          </div>
-        );
+}
+
+export default Player;

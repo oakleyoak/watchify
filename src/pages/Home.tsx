@@ -5,8 +5,24 @@ import SearchBar from '../components/SearchBar';
 import ContinueWatching from '../components/ContinueWatching';
 import TorrentCard from '../components/TorrentCard';
 
+
+
+interface Torrent {
+  magnet?: string;
+  title?: string;
+  poster_url?: string;
+  size?: string;
+  seeders?: number;
+}
+
+interface SearchParams {
+  query: string;
+  category: string;
+  resolution: string;
+}
+
 const Home = () => {
-  const [searchParams, setSearchParams] = useState(null);
+  const [searchParams, setSearchParams] = useState<SearchParams | null>(null);
   const [error, setError] = useState('');
   const navigate = useNavigate();
 
@@ -37,16 +53,18 @@ const Home = () => {
   // Handle query errors in useEffect to avoid infinite re-renders
   useEffect(() => {
     if (queryError) {
-      setError(queryError.message || 'Search failed. Please try again.');
+      setError((queryError as Error).message || 'Search failed. Please try again.');
     }
   }, [queryError]);
 
-  const handleStreamSelect = (stream) => {
+  const handleStreamSelect = (stream: Torrent) => {
     // Navigate to player with the selected stream
-    navigate(`/player?magnet=${encodeURIComponent(stream.magnet)}&title=${encodeURIComponent(stream.title)}`);
+    if (stream.magnet && stream.title) {
+      navigate(`/player?magnet=${encodeURIComponent(stream.magnet)}&title=${encodeURIComponent(stream.title)}`);
+    }
   };
 
-  const handleSearch = (query, category, resolution) => {
+  const handleSearch = (query: string, category: string, resolution: string) => {
     if (!query.trim()) {
       setError('Please enter a search query');
       setSearchParams(null);
